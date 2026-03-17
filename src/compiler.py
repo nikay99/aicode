@@ -168,16 +168,24 @@ class FunctionCompiler:
 
             # Condition
             self.compile_expr(expr.condition)
-            self.builder.emit_jump(OpCode.JUMP_IF_FALSE, else_label)
+            
+            if expr.else_branch:
+                # Has else branch - jump to else if condition is false
+                self.builder.emit_jump(OpCode.JUMP_IF_FALSE, else_label)
+            else:
+                # No else branch - jump to end if condition is false
+                self.builder.emit_jump(OpCode.JUMP_IF_FALSE, end_label)
 
             # Then branch
             for stmt in expr.then_branch:
                 self.compile_stmt(stmt)
+            
+            # Jump to end after then_branch to skip else (if any)
             self.builder.emit_jump(OpCode.JUMP, end_label)
 
             # Else branch
-            self.builder.label(else_label)
             if expr.else_branch:
+                self.builder.label(else_label)
                 if isinstance(expr.else_branch, ast.IfExpr):
                     self.compile_expr(expr.else_branch)
                 else:
@@ -195,9 +203,14 @@ class FunctionCompiler:
                 lambda_compiler.scope.define(param.name)
                 lambda_compiler.builder.get_local(param.name)
 
-            # Compile body
-            lambda_compiler.compile_expr(expr.body)
-            lambda_compiler.builder.emit(OpCode.RETURN_VALUE)
+            # Compile body - could be expression or list of statements
+            if isinstance(expr.body, list):
+                for stmt in expr.body:
+                    lambda_compiler.compile_stmt(stmt)
+                lambda_compiler.builder.emit(OpCode.RETURN)
+            else:
+                lambda_compiler.compile_expr(expr.body)
+                lambda_compiler.builder.emit(OpCode.RETURN_VALUE)
 
             # Build the function and add to module
             func = lambda_compiler.builder.build("<lambda>", len(expr.params))
@@ -273,7 +286,9 @@ class FunctionCompiler:
 
         elif isinstance(stmt, ast.ExprStmt):
             self.compile_expr(stmt.expr)
-            self.builder.emit(OpCode.POP)  # Pop unused expression value
+            # Don't pop for IfExpr since it doesn't produce a value (uses return statements)
+            if not isinstance(stmt.expr, ast.IfExpr):
+                self.builder.emit(OpCode.POP)  # Pop unused expression value
 
         elif isinstance(stmt, ast.ReturnStmt):
             if stmt.value:

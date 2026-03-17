@@ -39,35 +39,35 @@ class TestUnicodeListOperations(unittest.TestCase):
     def test_forall_map_double(self):
         """∀ (map) - Apply function to all elements"""
         lst = [1, 2, 3]
-        result = map_func(lambda x: x * 2, lst)
+        result = map_func(lst, lambda x: x * 2)
         self.assertEqual(result, [2, 4, 6])
 
     def test_forall_map_empty(self):
         """∀ (map) - Empty list"""
-        result = map_func(lambda x: x * 2, [])
+        result = map_func([], lambda x: x * 2)
         self.assertEqual(result, [])
 
     def test_exists_filter_evens(self):
         """∃ (filter) - Filter elements based on predicate"""
         lst = [1, 2, 3, 4, 5, 6]
-        result = filter_func(lambda x: x % 2 == 0, lst)
+        result = filter_func(lst, lambda x: x % 2 == 0)
         self.assertEqual(result, [2, 4, 6])
 
     def test_exists_filter_empty(self):
         """∃ (filter) - Empty list"""
-        result = filter_func(lambda x: x > 0, [])
+        result = filter_func([], lambda x: x > 0)
         self.assertEqual(result, [])
 
     def test_sum_reduce_addition(self):
         """∑ (reduce) - Reduce list to single value"""
         lst = [1, 2, 3, 4]
-        result = reduce_func(lambda acc, x: acc + x, lst, 0)
+        result = reduce_func(lst, lambda acc, x: acc + x, 0)
         self.assertEqual(result, 10)
 
     def test_sum_reduce_multiplication(self):
         """∑ (reduce) - Multiply all elements"""
         lst = [1, 2, 3, 4]
-        result = reduce_func(lambda acc, x: acc * x, lst, 1)
+        result = reduce_func(lst, lambda acc, x: acc * x, 1)
         self.assertEqual(result, 24)
 
     def test_element_of_contains(self):
@@ -122,9 +122,9 @@ class TestUnicodeListOperations(unittest.TestCase):
     def test_type_error_on_non_list(self):
         """Unicode functions should error on non-list inputs"""
         with self.assertRaises(StdlibError):
-            map_func(lambda x: x, "not a list")
+            map_func("not a list", lambda x: x)
         with self.assertRaises(StdlibError):
-            filter_func(lambda x: True, "not a list")
+            filter_func("not a list", lambda x: True)
         with self.assertRaises(StdlibError):
             contains_func(1, "not a list")
 
@@ -275,15 +275,15 @@ class TestIntegration(unittest.TestCase):
         """Map then filter pipeline"""
         lst = [1, 2, 3, 4, 5, 6]
         # Double all numbers, then keep only even
-        doubled = map_func(lambda x: x * 2, lst)
-        evens = filter_func(lambda x: x % 4 == 0, doubled)
+        doubled = map_func(lst, lambda x: x * 2)
+        evens = filter_func(doubled, lambda x: x % 4 == 0)
         self.assertEqual(evens, [4, 8, 12])
 
     def test_reduce_with_map(self):
         """Reduce the result of a map"""
         lst = [1, 2, 3, 4]
-        doubled = map_func(lambda x: x * 2, lst)
-        total = reduce_func(lambda acc, x: acc + x, doubled, 0)
+        doubled = map_func(lst, lambda x: x * 2)
+        total = reduce_func(doubled, lambda acc, x: acc + x, 0)
         self.assertEqual(total, 20)
 
     def test_string_split_join(self):

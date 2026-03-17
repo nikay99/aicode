@@ -18,7 +18,7 @@ println(multiply(5, 6))
 println(power(2, 10))
 
 # Pass functions as arguments
-fn apply_operation(a: int, b: int, op: fn(int, int) -> int) -> int
+fn apply_operation(a: int, b: int, op: (int, int) -> int) -> int
   return op(a, b)
 
 println("")
@@ -27,7 +27,7 @@ println(apply_operation(10, 20, add))
 println(apply_operation(10, 20, multiply))
 
 # Return functions from functions
-fn make_multiplier(factor: int) -> fn(int) -> int
+fn make_multiplier(factor: int) -> (int) -> int
   return fn(x): x * factor
 
 let double = make_multiplier(2)
@@ -41,7 +41,7 @@ println(triple(5))
 println(ten_times(5))
 
 # Function composition
-fn compose(f: fn(int) -> int, g: fn(int) -> int) -> fn(int) -> int
+fn compose(f: (int) -> int, g: (int) -> int) -> (int) -> int
   return fn(x): f(g(x))
 
 let add_one = fn(x): x + 1
@@ -56,7 +56,7 @@ println(add_one_then_square(3))  # (3+1)^2 = 16
 println(square_then_add_one(3))  # 3^2+1 = 10
 
 # Callback pattern
-fn process_items(items: list<int>, processor: fn(int) -> int) -> list<int>
+fn process_items(items: list<int>, processor: (int) -> int) -> list<int>
   let result = []
   for item in items
     result = append(result, processor(item))
@@ -70,7 +70,7 @@ println(process_items(numbers, double))
 println(process_items(numbers, square))
 
 # Currying-like pattern
-fn curried_add(a: int) -> fn(int) -> fn(int) -> int
+fn curried_add(a: int) -> (int) -> (int) -> int
   return fn(b): fn(c): a + b + c
 
 let add_five = curried_add(5)
@@ -100,15 +100,13 @@ println(reduce(nums, fn(acc, x): acc + x, 0))
 println("Product:")
 println(reduce(nums, fn(acc, x): acc * x, 1))
 
-# Chain operations
-let processed = map(
-  filter(nums, fn(x): x % 2 == 0),
-  fn(x): x * x
-)
+# Chain operations - simpler version
+let evens = filter(nums, fn(x): x % 2 == 0)
+let squared_evens = map(evens, fn(x): x * x)
 
 println("")
 println("Squared evens:")
-println(processed)
+println(squared_evens)
 
 # Helper functions
 fn append(arr: list<int>, elem: int) -> list<int>

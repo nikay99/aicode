@@ -274,7 +274,7 @@ class Parser:
         return LambdaExpr(params, None, body)
 
     def parse_lambda_long(self) -> LambdaExpr:
-        """Lange Lambda-Form: fn(x): x * 2"""
+        """Lange Lambda-Form: fn(x): x * 2 or fn(x):\n  ...\n"""
         self.advance()  # fn
 
         self.expect(TokenType.LPAREN)
@@ -286,7 +286,14 @@ class Parser:
             return_type = self.parse_type()
 
         self.expect(TokenType.COLON)
-        body = self.parse_expression()
+        
+        if self.check(TokenType.NEWLINE):
+            self.advance()
+            self.expect(TokenType.INDENT)
+            body = self.parse_block()
+            self.expect(TokenType.DEDENT)
+        else:
+            body = self.parse_expression()
 
         return LambdaExpr(params, return_type, body)
 

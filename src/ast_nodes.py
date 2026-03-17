@@ -109,7 +109,7 @@ class UnaryOp(Expr):
 class LambdaExpr(Expr):
     params: List["Param"]
     return_type: Optional[Type]
-    body: Expr
+    body: Union[Expr, List["Stmt"]]
 
 
 @dataclass
