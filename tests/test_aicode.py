@@ -6,11 +6,19 @@ import unittest
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.lexer import tokenize, TokenType
-from src.parser import parse, ParseError
-from src.interpreter import interpret, Interpreter, AICodeError
+import src.lexer as lexer
+import src.parser as parser
+import src.interpreter as interpreter
+
+tokenize = lexer.tokenize
+TokenType = lexer.TokenType
+parse = parser.parse
+ParseError = parser.ParseError
+interpret = interpreter.interpret
+Interpreter = interpreter.Interpreter
+AICodeError = interpreter.AICodeError
 
 
 class TestLexer(unittest.TestCase):
