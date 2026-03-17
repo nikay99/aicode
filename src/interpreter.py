@@ -3,6 +3,7 @@ AICode Interpreter
 Combines Compiler and VM for execution
 """
 
+import io
 import sys
 from typing import List, Any
 from pathlib import Path
@@ -11,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.compiler import BytecodeCompiler, CompilerError
 from src.vm import VirtualMachine, VMError
-from src.bytecode import BytecodeModule
 
 
 class AICodeError(Exception):
@@ -34,7 +34,15 @@ class Interpreter:
             compiler = BytecodeCompiler()
             module = compiler.compile_program(program)
 
-            self.vm.run(module)
+            captured = io.StringIO()
+            old_stdout = sys.stdout
+            sys.stdout = captured
+            try:
+                self.vm.run(module)
+            finally:
+                sys.stdout = old_stdout
+
+            self.output = captured.getvalue().splitlines()
 
         except CompilerError as e:
             raise AICodeError(f"Compilation error: {e}")
