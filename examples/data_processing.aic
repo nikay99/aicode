@@ -1,0 +1,11 @@
+# Data processing with pipes
+
+let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+# Double all numbers, filter evens, sum them
+let evens = filter(fn(x): x % 2 == 0, numbers)
+let doubled = map(fn(x): x * 2, evens)
+let total = reduce(fn(acc, x): acc + x, doubled, 0)
+
+println("Sum of doubled evens: ")
+println(total)

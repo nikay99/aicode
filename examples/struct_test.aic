@@ -1,0 +1,10 @@
+# Struct test
+struct Point
+  x: int
+  y: int
+
+let p = Point
+p.x = 3
+p.y = 4
+println(p.x)
+println(p.y)

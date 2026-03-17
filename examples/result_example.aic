@@ -1,0 +1,26 @@
+# Result type example
+fn divide(a: int, b: int)
+  if b == 0
+    return Err("Division by zero")
+  else
+    return Ok(a / b)
+
+let result1 = divide(10, 2)
+let result2 = divide(10, 0)
+
+println("10 / 2 =")
+if is_ok(result1)
+  println(unwrap(result1))
+else
+  println("Error: " + result1._error)
+
+println("10 / 0 =")
+if is_err(result2)
+  println("Error: " + result2._error)
+else
+  println(unwrap(result2))
+
+# Unwrap with default
+let value = unwrap_or(result2, 0)
+println("Value with default:")
+println(value)

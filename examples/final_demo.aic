@@ -1,0 +1,86 @@
+# AICode v1.0 Final Demo
+
+println("=== AICode v1.0 Demo ===")
+
+# 1. Variables and Arithmetic
+println("1. Variables and Arithmetic:")
+let a = 10
+let b = 3
+println(a + b)
+println(a * b)
+
+# 2. Functions with Type Inference
+println("2. Functions:")
+fn factorial(n)
+  if n <= 1
+    return 1
+  else
+    return n * factorial(n - 1)
+
+println(factorial(5))
+
+# 3. Higher-Order Functions
+println("3. Higher-Order Functions:")
+let numbers = range(1, 11)
+let evens = filter(fn(x): x % 2 == 0, numbers)
+let squares = map(fn(x): x * x, numbers)
+
+println(numbers)
+println(evens)
+println(squares)
+
+# 4. Pattern Matching
+println("4. Pattern Matching:")
+fn describe_number(n)
+  match n
+    0 -> "zero"
+    1 -> "one"
+    2 -> "two"
+    _ -> "many"
+
+for i in range(0, 5)
+  println(describe_number(i))
+
+# 5. Result Type and Error Handling
+println("5. Error Handling:")
+fn safe_divide(a, b)
+  if b == 0
+    return Err("Cannot divide by zero")
+  else
+    return Ok(a / b)
+
+let result1 = safe_divide(10, 2)
+let result2 = safe_divide(10, 0)
+
+if is_ok(result1)
+  println(unwrap(result1))
+else
+  println(result1._error)
+
+if is_err(result2)
+  println(result2._error)
+
+# 6. Dictionaries as Structs
+println("6. Dictionaries:")
+let user = {name: "Alice", age: 30, city: "NYC"}
+let description = user.name + " from " + user.city
+println(description)
+
+# 7. Data Processing
+println("7. Data Processing:")
+let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let filtered = filter(fn(x): x > 5, data)
+let doubled = map(fn(x): x * 2, filtered)
+let processed = reduce(fn(acc, x): acc + x, doubled, 0)
+
+println(data)
+println(processed)
+
+# 8. String Manipulation
+println("8. String Operations:")
+let message = "Hello, AICode!"
+let repeated = message + " " + message
+println(repeated)
+println(length(message))
+
+println("=== Demo Complete! ===")

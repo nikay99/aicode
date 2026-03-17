@@ -1,0 +1,43 @@
+# AICode Demo
+
+# Variables
+let x = 10
+let y = 20
+let sum = x + y
+println("Sum: ")
+println(sum)
+
+# Functions
+fn square(n: int) -> int
+  return n * n
+
+let sq = square(5)
+println("Square of 5: ")
+println(sq)
+
+# Lists and higher-order functions
+let nums = [1, 2, 3, 4, 5]
+let doubled = map(fn(x): x * 2, nums)
+println("Doubled: ")
+println(doubled)
+
+# Filtering
+let evens = filter(fn(x): x % 2 == 0, nums)
+println("Evens: ")
+println(evens)
+
+# Match
+let value = 3
+let name = match value
+  1 -> "one"
+  2 -> "two"
+  3 -> "three"
+  _ -> "other"
+
+println("Match result: ")
+println(name)
+
+# Loops
+println("Counting to 5:")
+for i in range(1, 6)
+  println(i)

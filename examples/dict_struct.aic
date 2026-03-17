@@ -1,0 +1,9 @@
+# Working with dictionaries (structs alternative)
+let point = {x: 3, y: 4}
+
+fn distance(p)
+  return p.x * p.x + p.y * p.y
+
+let d = distance(point)
+println("Distance squared:")
+println(d)

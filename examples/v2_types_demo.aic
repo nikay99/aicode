@@ -1,0 +1,23 @@
+# AICode v2.0 - Type Inference Demo
+
+# Hindley-Milner Type Inference
+let x = 42          # x: int
+let y = x + 8       # y: int
+let z = y * 2.5     # z: float (type promotion)
+
+# Polymorphic functions
+fn identity(x)      # identity: forall a. a -> a
+  return x
+
+fn apply(f, x)      # apply: forall a b. (a -> b) -> a -> b
+  return f(x)
+
+# List operations with inferred types
+let nums = [1, 2, 3]           # nums: list<int>
+let doubled = map(fn(n): n * 2, nums)  # doubled: list<int>
+
+# Type checking at compile time
+# This would fail:
+# let error = "hello" + 42    # Error: cannot add str and int
+
+println("Type checking complete!")

@@ -1,0 +1,9 @@
+# Match test
+let x = 5
+
+let outcome = match x
+  1 -> "one"
+  5 -> "five"
+  _ -> "other"
+
+println(outcome)

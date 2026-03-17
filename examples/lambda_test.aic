@@ -1,0 +1,4 @@
+# Simple lambda test
+let double = fn(x): x * 2
+let result = double(5)
+println(result)

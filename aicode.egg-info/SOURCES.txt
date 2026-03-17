@@ -1,0 +1,15 @@
+LICENSE
+README.md
+setup.py
+aicode.egg-info/PKG-INFO
+aicode.egg-info/SOURCES.txt
+aicode.egg-info/dependency_links.txt
+aicode.egg-info/entry_points.txt
+aicode.egg-info/requires.txt
+aicode.egg-info/top_level.txt
+src/__init__.py
+src/ast_nodes.py
+src/interpreter.py
+src/lexer.py
+src/parser.py
+tests/test_aicode.py
