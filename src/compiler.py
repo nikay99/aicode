@@ -12,12 +12,10 @@ from src.bytecode import (
     BytecodeModule,
     BytecodeBuilder,
 )
+from src.errors import CompilerError
 
 
-class CompilerError(Exception):
-    """Compilation error"""
-
-    pass
+# Keep CompilerError for backward compatibility
 
 
 class LocalScope:
@@ -46,17 +44,14 @@ class LocalScope:
 class FunctionCompiler:
     """Compiles a single function"""
 
-    def __init__(self, name: str, arity: int, global_names: Optional[List[str]] = None):
+    def __init__(self, name: str, arity: int, global_names: Optional[List[str]] = None, module: Optional["BytecodeModule"] = None):
         self.name = name
         self.arity = arity
         self.builder = BytecodeBuilder()
         self.scope = LocalScope()
         self.label_counter = 0
         self.global_names = global_names or []
-
-        # Define parameters as locals
-        for i in range(arity):
-            self.scope.define(f"_param_{i}")
+        self.module = module
 
     def new_label(self) -> str:
         """Generate a new unique label"""
@@ -96,19 +91,20 @@ class FunctionCompiler:
                     self.builder.emit(OpCode.LOAD_GLOBAL, len(self.global_names) - 1)
 
         elif isinstance(expr, ast.ListExpr):
-            # Compile elements in reverse order
-            for elem in reversed(expr.elements):
+            # Compile elements - BUILD_LIST will reverse them
+            for elem in expr.elements:
                 self.compile_expr(elem)
             self.builder.emit(OpCode.BUILD_LIST, len(expr.elements))
 
         elif isinstance(expr, ast.DictExpr):
             # Compile key-value pairs
+            # BUILD_DICT pops value then key, so push key first, then value
             for entry in reversed(expr.entries):
-                self.compile_expr(entry.value)
                 if isinstance(entry.key, str):
                     self.builder.emit_load_const(entry.key)
                 else:
                     self.compile_expr(entry.key)
+                self.compile_expr(entry.value)
             self.builder.emit(OpCode.BUILD_DICT, len(expr.entries))
 
         elif isinstance(expr, ast.BinaryOp):
@@ -136,7 +132,7 @@ class FunctionCompiler:
             if expr.op in opcodes:
                 self.builder.emit(opcodes[expr.op])
             else:
-                raise CompilerError(f"Unknown binary operator: {expr.op}")
+                raise CompilerError("E309", f"Unknown binary operator: {expr.op}")
 
         elif isinstance(expr, ast.UnaryOp):
             self.compile_expr(expr.operand)
@@ -146,7 +142,7 @@ class FunctionCompiler:
             elif expr.op in ("!", "not"):
                 self.builder.emit(OpCode.NOT)
             else:
-                raise CompilerError(f"Unknown unary operator: {expr.op}")
+                raise CompilerError("E309", f"Unknown unary operator: {expr.op}")
 
         elif isinstance(expr, ast.CallExpr):
             # Compile arguments
@@ -192,17 +188,30 @@ class FunctionCompiler:
 
         elif isinstance(expr, ast.LambdaExpr):
             # Compile lambda as anonymous function
-            lambda_compiler = FunctionCompiler("<lambda>", len(expr.params))
+            lambda_compiler = FunctionCompiler("<lambda>", len(expr.params), self.global_names, self.module)
 
             # Define parameters
             for param in expr.params:
                 lambda_compiler.scope.define(param.name)
+                lambda_compiler.builder.get_local(param.name)
 
             # Compile body
             lambda_compiler.compile_expr(expr.body)
             lambda_compiler.builder.emit(OpCode.RETURN_VALUE)
 
-            # TODO: Add function to module and push reference
+            # Build the function and add to module
+            func = lambda_compiler.builder.build("<lambda>", len(expr.params))
+            func_idx = self.module.add_function(func)
+            
+            # Push function reference onto stack
+            # We need to load the function from module.functions
+            # Since we can't directly push a function object, we'll use a special approach
+            # Store function in a global slot temporarily
+            temp_global_name = f"__lambda_{func_idx}__"
+            if temp_global_name not in self.module.globals:
+                self.module.globals.append(temp_global_name)
+            global_idx = self.module.globals.index(temp_global_name)
+            self.builder.emit(OpCode.LOAD_GLOBAL, global_idx)
 
         elif isinstance(expr, ast.MatchExpr):
             # Compile match expression
@@ -227,7 +236,7 @@ class FunctionCompiler:
             self.builder.label(end_label)
 
         else:
-            raise CompilerError(f"Unsupported expression: {type(expr).__name__}")
+            raise CompilerError("E204", f"Unsupported expression: {type(expr).__name__}")
 
     def compile_stmt(self, stmt: ast.Stmt):
         """Compile a statement"""
@@ -235,8 +244,17 @@ class FunctionCompiler:
         if isinstance(stmt, ast.LetStmt):
             self.compile_expr(stmt.value)
             idx = self.scope.define(stmt.name)
+            self.builder.get_local(stmt.name)  # Sync with builder
             self.builder.emit(OpCode.STORE_LOCAL, idx)
             self.builder.emit(OpCode.POP)  # Pop the value
+
+        elif isinstance(stmt, ast.ConstStmt):
+            # Const is similar to Let but immutable
+            self.compile_expr(stmt.value)
+            idx = self.scope.define(stmt.name)
+            self.builder.get_local(stmt.name)
+            self.builder.emit(OpCode.STORE_LOCAL, idx)
+            self.builder.emit(OpCode.POP)
 
         elif isinstance(stmt, ast.AssignStmt):
             self.compile_expr(stmt.value)
@@ -309,7 +327,7 @@ class FunctionCompiler:
 
         elif isinstance(stmt, ast.FnStmt):
             # Nested function - compile separately
-            func_compiler = FunctionCompiler(stmt.name, len(stmt.params))
+            func_compiler = FunctionCompiler(stmt.name, len(stmt.params), self.global_names, self.module)
 
             for param in stmt.params:
                 func_compiler.scope.define(param.name)
@@ -323,7 +341,7 @@ class FunctionCompiler:
             # TODO: Add to module
 
         else:
-            raise CompilerError(f"Unsupported statement: {type(stmt).__name__}")
+            raise CompilerError("E204", f"Unsupported statement: {type(stmt).__name__}")
 
     def compile(self, body: List[ast.Stmt]) -> BytecodeFunction:
         """Compile function body"""
@@ -382,7 +400,7 @@ class BytecodeCompiler:
                 self._compile_function(stmt)
 
         # Compile main function (top-level code)
-        main_compiler = FunctionCompiler("__main__", 0, self.module.globals)
+        main_compiler = FunctionCompiler("__main__", 0, self.module.globals, self.module)
 
         for stmt in program.statements:
             if not isinstance(stmt, ast.FnStmt):
@@ -399,10 +417,11 @@ class BytecodeCompiler:
 
     def _compile_function(self, stmt: ast.FnStmt):
         """Compile a function definition"""
-        compiler = FunctionCompiler(stmt.name, len(stmt.params), self.module.globals)
+        compiler = FunctionCompiler(stmt.name, len(stmt.params), self.module.globals, self.module)
 
         for param in stmt.params:
             compiler.scope.define(param.name)
+            compiler.builder.get_local(param.name)
 
         for s in stmt.body:
             compiler.compile_stmt(s)

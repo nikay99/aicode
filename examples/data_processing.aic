@@ -1,11 +1,164 @@
-# Data processing with pipes
+# Data processing with lists and dictionaries
+# Demonstrates working with collections and higher-order functions
 
+# Create a list of numbers
 let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+println("Original numbers:")
+println(numbers)
 
-# Double all numbers, filter evens, sum them
+# Basic statistics
+fn sum_list(items: list<int>) -> int
+  let total = 0
+  for item in items
+    total = total + item
+  return total
+
+fn average(items: list<int>) -> float
+  return sum_list(items) / length(items)
+
+fn min_value(items: list<int>) -> int
+  let min = items[0]
+  for item in items
+    if item < min
+      min = item
+  return min
+
+fn max_value(items: list<int>) -> int
+  let max = items[0]
+  for item in items
+    if item > max
+      max = item
+  return max
+
+println("")
+println("Statistics:")
+println("Sum: ")
+println(sum_list(numbers))
+println("Average: ")
+println(average(numbers))
+println("Min: ")
+println(min_value(numbers))
+println("Max: ")
+println(max_value(numbers))
+
+# Transformations using map
+println("")
+println("Transformations:")
+let doubled = map(numbers, fn(x): x * 2)
+println("Doubled:")
+println(doubled)
+
+let squared = map(numbers, fn(x): x * x)
+println("Squared:")
+println(squared)
+
+# Filtering using filter
+println("")
+println("Filtering:")
 let evens = filter(numbers, fn(x): x % 2 == 0)
-let doubled = map(evens, fn(x): x * 2)
-let total = reduce(doubled, fn(acc, x): acc + x, 0)
+println("Evens:")
+println(evens)
 
-println("Sum of doubled evens: ")
-println(total)
+let odds = filter(numbers, fn(x): x % 2 != 0)
+println("Odds:")
+println(odds)
+
+let greater_than_five = filter(numbers, fn(x): x > 5)
+println("Greater than 5:")
+println(greater_than_five)
+
+# Reduction using reduce
+println("")
+println("Reductions:")
+let product = reduce(numbers, fn(acc, x): acc * x, 1)
+println("Product of all:")
+println(product)
+
+let sum_of_squares = reduce(
+  map(numbers, fn(x): x * x),
+  fn(acc, x): acc + x,
+  0
+)
+println("Sum of squares:")
+println(sum_of_squares)
+
+# Working with dictionaries
+println("")
+println("Dictionary operations:")
+let person = {
+  "name": "Alice",
+  "age": 30,
+  "city": "New York"
+}
+
+println("Person:")
+println(person)
+
+println("Name: ")
+println(person.name)
+
+println("Age: ")
+println(person.age)
+
+# List of dictionaries
+let people = [
+  {"name": "Alice", "age": 30, "salary": 50000},
+  {"name": "Bob", "age": 25, "salary": 45000},
+  {"name": "Charlie", "age": 35, "salary": 60000},
+  {"name": "Diana", "age": 28, "salary": 55000}
+]
+
+println("")
+println("People database:")
+for person in people
+  println(person.name + ": " + person.age)
+
+# Calculate average salary
+let total_salary = 0
+for person in people
+  total_salary = total_salary + person.salary
+
+println("")
+println("Average salary: ")
+println(total_salary / length(people))
+
+# Find people older than 28
+let older_than_28 = filter(people, fn(p): p.age > 28)
+println("")
+println("People older than 28:")
+for person in older_than_28
+  println(person.name)
+
+# Chained operations
+println("")
+println("Chained operations:")
+let result = reduce(
+  map(
+    filter(numbers, fn(x): x % 2 == 0),
+    fn(x): x * x
+  ),
+  fn(acc, x): acc + x,
+  0
+)
+println("Sum of squares of evens:")
+println(result)
+
+# Range generation
+println("")
+println("Range operations:")
+let range_10 = range(10)
+println("Range 0-9:")
+println(range_10)
+
+let range_1_to_10 = range(1, 11)
+println("Range 1-10:")
+println(range_1_to_10)
+
+# Zip two lists together
+let names = ["Alice", "Bob", "Charlie"]
+let ages = [30, 25, 35]
+
+println("")
+println("Zipped data:")
+for i in range(0, length(names))
+  println(names[i] + " is " + ages[i] + " years old")

@@ -6,6 +6,12 @@ Stack-based VM for bytecode execution
 from typing import List, Any, Dict, Optional
 from dataclasses import dataclass, field
 from src.bytecode import OpCode, BytecodeFunction, BytecodeModule, Instruction
+from src.stdlib_ai import BUILTINS
+from src.errors import (
+    RuntimeError, division_by_zero, index_out_of_bounds, key_not_found,
+    undefined_function, stack_overflow, stack_underflow,
+    E106, E404, E406, E407, E408, E410, E411, E412, E413, E418, E419
+)
 
 
 class VMError(Exception):
@@ -25,10 +31,37 @@ class CallFrame:
     def read_instruction(self) -> Instruction:
         """Read next instruction"""
         if self.ip >= len(self.function.code):
-            raise VMError("Unexpected end of code")
+            raise RuntimeError(E106, "Unexpected end of code")
         instr = self.function.code[self.ip]
         self.ip += 1
         return instr
+
+
+class BytecodeFunctionWrapper:
+    """Wrapper to make BytecodeFunction callable from Python"""
+    
+    def __init__(self, func: BytecodeFunction, vm: "VirtualMachine"):
+        self.func = func
+        self.vm = vm
+    
+    def __call__(self, *args):
+        """Execute the bytecode function with given arguments"""
+        # Create a new frame for the function call
+        new_frame = CallFrame(self.func)
+        new_frame.locals = list(args) + [None] * (self.func.locals_count - len(args))
+        self.vm.frames.append(new_frame)
+        
+        # Execute until the frame returns
+        while len(self.vm.frames) > 1:  # Keep going until we return to main
+            try:
+                self.vm._execute_instruction()
+            except StopIteration:
+                break
+        
+        # Return the result from the stack
+        if self.vm.stack:
+            return self.vm.pop()
+        return None
 
 
 class VirtualMachine:
@@ -45,46 +78,8 @@ class VirtualMachine:
 
     def _setup_builtins(self):
         """Setup built-in functions"""
-        self.globals["print"] = self._builtin_print
-        self.globals["println"] = self._builtin_println
-        self.globals["range"] = self._builtin_range
-        self.globals["map"] = self._builtin_map
-        self.globals["filter"] = self._builtin_filter
-        self.globals["reduce"] = self._builtin_reduce
-        self.globals["length"] = len
-
-    def _builtin_print(self, *args):
-        """Built-in print function"""
-        print(*args, end="")
-
-    def _builtin_println(self, *args):
-        """Built-in println function"""
-        print(*args)
-
-    def _builtin_range(self, *args):
-        """Built-in range function"""
-        if len(args) == 1:
-            return list(range(args[0]))
-        elif len(args) == 2:
-            return list(range(args[0], args[1]))
-        elif len(args) == 3:
-            return list(range(args[0], args[1], args[2]))
-        raise VMError("range() takes 1-3 arguments")
-
-    def _builtin_map(self, func, lst):
-        """Built-in map function"""
-        return [func(item) for item in lst]
-
-    def _builtin_filter(self, func, lst):
-        """Built-in filter function"""
-        return [item for item in lst if func(item)]
-
-    def _builtin_reduce(self, func, lst, initial):
-        """Built-in reduce function"""
-        result = initial
-        for item in lst:
-            result = func(result, item)
-        return result
+        # Register all functions from stdlib_ai
+        self.globals.update(BUILTINS)
 
     def push(self, value: Any):
         """Push value onto stack"""
@@ -93,19 +88,19 @@ class VirtualMachine:
     def pop(self) -> Any:
         """Pop value from stack"""
         if not self.stack:
-            raise VMError("Stack underflow")
+            raise stack_underflow()
         return self.stack.pop()
 
     def peek(self, offset: int = 0) -> Any:
         """Peek at stack without popping"""
         if len(self.stack) <= offset:
-            raise VMError("Stack underflow")
+            raise stack_underflow()
         return self.stack[-(offset + 1)]
 
     def current_frame(self) -> CallFrame:
         """Get current call frame"""
         if not self.frames:
-            raise VMError("No call frame")
+            raise RuntimeError(E419, "No call frame")
         return self.frames[-1]
 
     def run(self, module: BytecodeModule):
@@ -116,6 +111,29 @@ class VirtualMachine:
         for name in module.globals:
             if name not in self.globals:
                 self.globals[name] = None
+        
+        # Store function references in globals for user-defined functions and lambdas
+        # First, create a mapping of function names to their indices
+        func_indices = {}
+        for i, func in enumerate(module.functions):
+            if func.name != "__main__":
+                func_indices[func.name] = i
+        
+        # Now store functions in globals by matching names
+        for i, func in enumerate(module.functions):
+            if func.name != "__main__":
+                if func.name in self.globals:
+                    self.globals[func.name] = func
+        
+        # Handle lambdas specially - match __lambda_X__ globals to <lambda> functions
+        lambda_count = 0
+        for global_name in module.globals:
+            if global_name.startswith("__lambda_"):
+                # Find the corresponding lambda function
+                for func in module.functions:
+                    if func.name == "<lambda>":
+                        self.globals[global_name] = func
+                        break
 
         # Start with entry point
         entry_func = module.functions[module.entry_point]
@@ -170,16 +188,16 @@ class VirtualMachine:
 
         elif opcode == OpCode.LOAD_GLOBAL:
             if self.module is None:
-                raise VMError("No module loaded")
+                raise RuntimeError(E413, "No module loaded")
             name = self.module.globals[operand] if isinstance(operand, int) else operand
             if name in self.globals:
                 self.push(self.globals[name])
             else:
-                raise VMError(f"Undefined global: {name}")
+                raise undefined_function(name)
 
         elif opcode == OpCode.STORE_GLOBAL:
             if self.module is None:
-                raise VMError("No module loaded")
+                raise RuntimeError(E413, "No module loaded")
             name = self.module.globals[operand] if isinstance(operand, int) else operand
             value = self.pop()
             self.globals[name] = value
@@ -276,14 +294,21 @@ class VirtualMachine:
 
         elif opcode == OpCode.CALL:
             argc = operand
-            # Get function from stack (it's below the arguments)
+            # Get function from stack (it's on top, args are below)
+            func = self.pop()
             args = [self.pop() for _ in range(argc)]
             args.reverse()
-            func = self.pop()
 
             if callable(func):
                 # Built-in or Python function
-                result = func(*args)
+                # Wrap any BytecodeFunction arguments so they're callable
+                wrapped_args = []
+                for arg in args:
+                    if isinstance(arg, BytecodeFunction):
+                        wrapped_args.append(BytecodeFunctionWrapper(arg, self))
+                    else:
+                        wrapped_args.append(arg)
+                result = func(*wrapped_args)
                 self.push(result)
             elif isinstance(func, BytecodeFunction):
                 # AICode function
@@ -291,7 +316,7 @@ class VirtualMachine:
                 new_frame.locals = args + [None] * (func.locals_count - len(args))
                 self.frames.append(new_frame)
             else:
-                raise VMError(f"Cannot call {type(func)}")
+                raise RuntimeError(E410, f"Cannot call {type(func)}")
 
         elif opcode == OpCode.RETURN:
             self.frames.pop()
@@ -325,7 +350,7 @@ class VirtualMachine:
             elif isinstance(obj, dict):
                 self.push(obj[index])
             else:
-                raise VMError(f"Cannot index {type(obj)}")
+                raise RuntimeError(E408, f"Cannot index {type(obj)}")
 
         elif opcode == OpCode.GET_ATTR:
             obj = self.pop()
@@ -343,6 +368,39 @@ class VirtualMachine:
             value = self.pop()
             print(value)
 
+        elif opcode == OpCode.ITER:
+            obj = self.pop()
+            if isinstance(obj, list):
+                self.push(iter(obj))
+            elif isinstance(obj, dict):
+                self.push(iter(obj.items()))
+            elif isinstance(obj, str):
+                self.push(iter(obj))
+            elif hasattr(obj, '__iter__'):
+                self.push(iter(obj))
+            else:
+                raise RuntimeError(E408, f"Cannot iterate over {type(obj)}")
+
+        elif opcode == OpCode.ITER_NEXT:
+            # Pop the iterator from the stack
+            iterator = self.pop()
+            try:
+                value = next(iterator)
+                # Push iterator back for next iteration
+                self.push(iterator)
+                # Push the value
+                if isinstance(value, tuple) and len(value) == 2:
+                    # Dictionary items come as (key, value) pairs
+                    self.push(value[0])
+                    self.push(value[1])
+                else:
+                    self.push(value)
+                # Success - don't jump
+            except StopIteration:
+                # No more items - jump to end
+                frame = self.current_frame()
+                frame.ip += operand
+
         elif opcode == OpCode.NOP:
             pass
 
@@ -350,4 +408,4 @@ class VirtualMachine:
             raise StopIteration()
 
         else:
-            raise VMError(f"Unknown opcode: {opcode}")
+            raise RuntimeError(E418, f"Unknown opcode: {opcode}")

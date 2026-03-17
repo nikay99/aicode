@@ -5,6 +5,7 @@ AICode Parser - Recursive Descent Parser
 from typing import List, Optional, Union
 from .lexer import Token, TokenType, tokenize
 from .ast_nodes import *
+from .errors import ParserError, unexpected_token, expected_token, missing_delimiter
 
 
 class ParseError(Exception):
@@ -33,7 +34,11 @@ class Parser:
     def expect(self, type: TokenType, msg: Optional[str] = None) -> Token:
         if not self.check(type):
             found = self.peek().type.name
-            raise ParseError(msg or f"Expected {type.name}, found {found}")
+            token = self.peek()
+            if msg:
+                raise ParserError("E202", msg, token.line, token.column)
+            else:
+                raise expected_token(type.name, found, token.line, token.column)
         return self.advance()
 
     def match(self, *types: TokenType) -> bool:
@@ -85,7 +90,7 @@ class Parser:
             self.expect(TokenType.ARROW)
             return_type = self.parse_type()
             if return_type is None:
-                raise ParseError("Expected return type in function type")
+                raise ParserError("E209", "Expected return type in function type", self.peek().line, self.peek().column)
             return FunctionType(param_types, return_type)
 
         return None
@@ -252,7 +257,7 @@ class Parser:
         if self.match(TokenType.LBRACE):
             return self.parse_dict()
 
-        raise ParseError(f"Unexpected token: {self.peek().type.name}")
+        raise unexpected_token(self.peek().type.name, line=self.peek().line, column=self.peek().column)
 
     def parse_lambda_short(self) -> LambdaExpr:
         """Kurze Lambda-Form: \\x: x * 2"""
@@ -330,7 +335,7 @@ class Parser:
         elif self.match(TokenType.STRING):
             key = self.peek(-1).value
         else:
-            raise ParseError("Expected identifier or string for dict key")
+            raise ParserError("E218", "Expected identifier or string for dict key", self.peek().line, self.peek().column)
 
         self.expect(TokenType.COLON)
         value = self.parse_expression()
@@ -386,7 +391,7 @@ class Parser:
 
             return IdentifierPattern(name)
 
-        raise ParseError(f"Unexpected token in pattern: {self.peek().type.name}")
+        raise unexpected_token(self.peek().type.name, context="in pattern", line=self.peek().line, column=self.peek().column)
 
     def parse_if_expr(self) -> IfExpr:
         """Parsed if expr ..."""
@@ -638,7 +643,7 @@ class Parser:
             stmt = self.parse_enum()
             stmt.exported = True
             return stmt
-        raise ParseError("Expected fn, struct, or enum after export")
+        raise ParserError("E215", "Expected fn, struct, or enum after export", self.peek().line, self.peek().column)
 
     # === Program ===
 

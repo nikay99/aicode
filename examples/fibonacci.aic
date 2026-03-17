@@ -1,0 +1,54 @@
+# Fibonacci sequence examples
+# Demonstrates both iterative and recursive approaches
+
+# Iterative Fibonacci - efficient O(n)
+fn fibonacci_iterative(n: int) -> int
+  if n <= 1
+    return n
+  let a = 0
+  let b = 1
+  let i = 2
+  while i <= n
+    let temp = a + b
+    a = b
+    b = temp
+    i = i + 1
+  return b
+
+# Recursive Fibonacci - elegant but O(2^n)
+fn fibonacci_recursive(n: int) -> int
+  if n <= 1
+    return n
+  return fibonacci_recursive(n - 1) + fibonacci_recursive(n - 2)
+
+# Print first 10 Fibonacci numbers using iterative
+println("Iterative Fibonacci:")
+for i in range(0, 10)
+  println(fibonacci_iterative(i))
+
+println("")
+
+# Print first 10 Fibonacci numbers using recursive
+println("Recursive Fibonacci:")
+for i in range(0, 10)
+  println(fibonacci_recursive(i))
+
+# Fast doubling method - O(log n)
+fn fib_fast_double(n: int) -> int
+  if n <= 1
+    return n
+  let a = 0
+  let b = 1
+  let m = n
+  while m > 0
+    let c = a * (2 * b - a)
+    let d = a * a + b * b
+    a = c
+    b = d
+    m = m - 1
+  return a
+
+println("")
+println("Fast doubling Fibonacci:")
+for i in range(0, 10)
+  println(fib_fast_double(i))

@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum, auto
 import src.ast_nodes as ast
+from .errors import TypeCheckError, undefined_variable, type_mismatch, occurs_check
 
 
 class TypeVar:
@@ -81,6 +82,10 @@ class TypeError(Exception):
     """Type checking error"""
 
     pass
+
+
+# Import error helpers at module level for convenience
+from .errors import E301, E302, E303, E304, E305, E306, E307, E308, E309, E310, E311, E312, E313, E314, E315, E316, E317, E318, E319, E320
 
 
 @dataclass
@@ -260,17 +265,17 @@ class TypeChecker:
         if isinstance(t1, TypeVar):
             if t1 != t2:
                 if self._occurs_in(t1, t2):
-                    raise TypeError(f"Occurs check failed: {t1} in {t2}")
+                    raise TypeCheckError(E305, f"Occurs check failed: {t1} in {t2}")
                 t1.instance = t2
         elif isinstance(t2, TypeVar):
             self.unify(t2, t1)
         elif isinstance(t1, TypeConst) and isinstance(t2, TypeConst):
             if t1.name != t2.name:
-                raise TypeError(f"Cannot unify {t1} with {t2}")
+                raise TypeCheckError(E308, f"Cannot unify {t1} with {t2}")
         elif isinstance(t1, TypeArrow) and isinstance(t2, TypeArrow):
             if len(t1.arg_types) != len(t2.arg_types):
-                raise TypeError(
-                    f"Function arity mismatch: {len(t1.arg_types)} vs {len(t2.arg_types)}"
+                raise TypeCheckError(
+                    E306, f"Function arity mismatch: {len(t1.arg_types)} vs {len(t2.arg_types)}"
                 )
             for a1, a2 in zip(t1.arg_types, t2.arg_types):
                 self.unify(a1, a2)
@@ -281,7 +286,7 @@ class TypeChecker:
             self.unify(t1.key_type, t2.key_type)
             self.unify(t1.val_type, t2.val_type)
         else:
-            raise TypeError(f"Cannot unify {t1} with {t2}")
+            raise TypeCheckError(E308, f"Cannot unify {t1} with {t2}")
 
     def _prune(self, t: Type) -> Type:
         """Follow type variable links"""
@@ -329,7 +334,7 @@ class TypeChecker:
         elif isinstance(expr, ast.Identifier):
             scheme = env.get(expr.name)
             if scheme is None:
-                raise TypeError(f"Unbound variable: {expr.name}")
+                raise TypeCheckError(E302, f"Undefined variable: '{expr.name}'")
             return self.instantiate(scheme)
 
         elif isinstance(expr, ast.BinaryOp):
@@ -352,7 +357,7 @@ class TypeChecker:
                 self.unify(t2, TypeBool)
                 return TypeBool
             else:
-                raise TypeError(f"Unknown operator: {expr.op}")
+                raise TypeCheckError(E309, f"Unknown operator: {expr.op}")
 
         elif isinstance(expr, ast.UnaryOp):
             t = self.infer(env, expr.operand)
@@ -363,7 +368,7 @@ class TypeChecker:
                 self.unify(t, TypeBool)
                 return TypeBool
             else:
-                raise TypeError(f"Unknown unary operator: {expr.op}")
+                raise TypeCheckError(E309, f"Unknown unary operator: {expr.op}")
 
         elif isinstance(expr, ast.ListExpr):
             if not expr.elements:
@@ -500,7 +505,7 @@ class TypeChecker:
                 self.unify(func_type, expected)
                 return ret_type
         else:
-            raise TypeError(f"Unsupported expression type: {type(expr).__name__}")
+            raise TypeCheckError(E304, f"Unsupported expression type: {type(expr).__name__}")
 
     def _parse_type_annotation(self, type_node: ast.Type) -> Type:
         """Parse a type annotation from AST"""
@@ -594,7 +599,7 @@ class TypeChecker:
             value_type = self.infer(env, stmt.value)
             var_scheme = env.get(stmt.name)
             if var_scheme is None:
-                raise TypeError(f"Undefined variable: {stmt.name}")
+                raise TypeCheckError(E302, f"Undefined variable: '{stmt.name}'")
             var_type = self.instantiate(var_scheme)
             self.unify(var_type, value_type)
             return env
