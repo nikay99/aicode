@@ -116,10 +116,6 @@ def unwrap_or_func(result, default):
     if is_ok_func(result):
         return result.value
     return default
-    """∉ (not element of) - Check if element is NOT in list"""
-    if not isinstance(lst, list):
-        raise StdlibError(f"∉ expects a list, got {type(lst)}")
-    return item not in lst
 
 
 def reverse_func(lst: List[Any]) -> List[Any]:
