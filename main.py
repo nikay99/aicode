@@ -8,11 +8,18 @@ import argparse
 from pathlib import Path
 
 # Füge src zum Path hinzu
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent))
 
-from src.lexer import tokenize
-from src.parser import parse, ParseError
-from src.interpreter import interpret, Interpreter, AICodeError
+import src.lexer as lexer
+import src.parser as parser
+import src.interpreter as interpreter
+
+tokenize = lexer.tokenize
+parse = parser.parse
+ParseError = parser.ParseError
+interpret = interpreter.interpret
+Interpreter = interpreter.Interpreter
+AICodeError = interpreter.AICodeError
 
 
 def run_file(filepath: str):

@@ -3,8 +3,9 @@ Quick test for Unicode lexer
 """
 
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "src")
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from lexer_ai import tokenize, TokenType
 
