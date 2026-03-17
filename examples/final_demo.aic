@@ -22,8 +22,8 @@ println(factorial(5))
 # 3. Higher-Order Functions
 println("3. Higher-Order Functions:")
 let numbers = range(1, 11)
-let evens = filter(fn(x): x % 2 == 0, numbers)
-let squares = map(fn(x): x * x, numbers)
+let evens = filter(numbers, fn(x): x % 2 == 0)
+let squares = map(numbers, fn(x): x * x)
 
 println(numbers)
 println(evens)
@@ -69,9 +69,9 @@ println(description)
 # 7. Data Processing
 println("7. Data Processing:")
 let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-let filtered = filter(fn(x): x > 5, data)
-let doubled = map(fn(x): x * 2, filtered)
-let processed = reduce(fn(acc, x): acc + x, doubled, 0)
+let filtered = filter(data, fn(x): x > 5)
+let doubled = map(filtered, fn(x): x * 2)
+let processed = reduce(doubled, fn(acc, x): acc + x, 0)
 
 println(data)
 println(processed)

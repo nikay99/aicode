@@ -126,7 +126,7 @@ println(result)
     def test_lists(self):
         source = """
 let nums = [1, 2, 3, 4, 5]
-let doubled = map(fn(x): x * 2, nums)
+let doubled = map(nums, fn(x): x * 2)
 println(doubled)
 """
         interpreter = Interpreter()
@@ -137,7 +137,7 @@ println(doubled)
     def test_filter(self):
         source = """
 let nums = [1, 2, 3, 4, 5, 6]
-let evens = filter(fn(x): x % 2 == 0, nums)
+let evens = filter(nums, fn(x): x % 2 == 0)
 println(evens)
 """
         interpreter = Interpreter()
@@ -148,7 +148,7 @@ println(evens)
     def test_reduce(self):
         source = """
 let nums = [1, 2, 3, 4, 5]
-let sum = reduce(fn(acc, x): acc + x, nums, 0)
+let sum = reduce(nums, fn(acc, x): acc + x, 0)
 println(sum)
 """
         interpreter = Interpreter()

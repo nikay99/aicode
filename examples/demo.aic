@@ -17,12 +17,12 @@ println(sq)
 
 # Lists and higher-order functions
 let nums = [1, 2, 3, 4, 5]
-let doubled = map(fn(x): x * 2, nums)
+let doubled = map(nums, fn(x): x * 2)
 println("Doubled: ")
 println(doubled)
 
 # Filtering
-let evens = filter(fn(x): x % 2 == 0, nums)
+let evens = filter(nums, fn(x): x % 2 == 0)
 println("Evens: ")
 println(evens)
 

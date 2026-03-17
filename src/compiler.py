@@ -359,7 +359,22 @@ class BytecodeCompiler:
             elif isinstance(stmt, ast.FnStmt):
                 self.global_vars.add(stmt.name)
 
-        self.module.globals = list(self.global_vars)
+        # Add built-in functions to globals
+        builtins = [
+            "print",
+            "println",
+            "map",
+            "filter",
+            "reduce",
+            "length",
+            "range",
+            "str",
+            "int",
+            "float",
+            "keys",
+            "values",
+        ]
+        self.module.globals = builtins + list(self.global_vars)
 
         # Compile functions
         for stmt in program.statements:
@@ -367,7 +382,7 @@ class BytecodeCompiler:
                 self._compile_function(stmt)
 
         # Compile main function (top-level code)
-        main_compiler = FunctionCompiler("__main__", 0)
+        main_compiler = FunctionCompiler("__main__", 0, self.module.globals)
 
         for stmt in program.statements:
             if not isinstance(stmt, ast.FnStmt):
@@ -376,14 +391,15 @@ class BytecodeCompiler:
         # Add final halt
         main_compiler.builder.emit(OpCode.HALT)
 
-        main_func = main_compiler.compile(program.statements)
+        # Build the function (no more compilation, just finalize)
+        main_func = main_compiler.builder.build("__main__", 0)
         self.module.entry_point = self.module.add_function(main_func)
 
         return self.module
 
     def _compile_function(self, stmt: ast.FnStmt):
         """Compile a function definition"""
-        compiler = FunctionCompiler(stmt.name, len(stmt.params))
+        compiler = FunctionCompiler(stmt.name, len(stmt.params), self.module.globals)
 
         for param in stmt.params:
             compiler.scope.define(param.name)
@@ -391,5 +407,13 @@ class BytecodeCompiler:
         for s in stmt.body:
             compiler.compile_stmt(s)
 
-        func = compiler.compile(stmt.body)
+        # Ensure return if not present
+        if not compiler.builder.code or compiler.builder.code[-1].opcode not in (
+            OpCode.RETURN,
+            OpCode.RETURN_VALUE,
+        ):
+            compiler.builder.emit(OpCode.PUSH_NULL)
+            compiler.builder.emit(OpCode.RETURN_VALUE)
+
+        func = compiler.builder.build(stmt.name, len(stmt.params))
         self.module.add_function(func)

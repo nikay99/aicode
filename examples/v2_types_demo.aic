@@ -14,7 +14,7 @@ fn apply(f, x)      # apply: forall a b. (a -> b) -> a -> b
 
 # List operations with inferred types
 let nums = [1, 2, 3]           # nums: list<int>
-let doubled = map(fn(n): n * 2, nums)  # doubled: list<int>
+let doubled = map(nums, fn(n): n * 2)  # doubled: list<int>
 
 # Type checking at compile time
 # This would fail:

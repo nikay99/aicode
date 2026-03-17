@@ -140,13 +140,13 @@ class Interpreter:
         self.output.append(output)
         return None
 
-    def _builtin_map(self, func, lst: List) -> List:
+    def _builtin_map(self, lst: List, func) -> List:
         return [self._call_function(func, [item]) for item in lst]
 
-    def _builtin_filter(self, func, lst: List) -> List:
+    def _builtin_filter(self, lst: List, func) -> List:
         return [item for item in lst if self._call_function(func, [item])]
 
-    def _builtin_reduce(self, func, lst: List, initial: Any) -> Any:
+    def _builtin_reduce(self, lst: List, func, initial: Any) -> Any:
         result = initial
         for item in lst:
             result = self._call_function(func, [result, item])
@@ -294,13 +294,16 @@ class Interpreter:
 
     def visit_StructStmt(self, stmt: StructStmt):
         # Struct als Factory-Funktion definieren
-        def struct_factory(**kwargs):
+        field_names = [f.name for f in stmt.fields]
+
+        def struct_factory(*args):
+            if len(args) != len(field_names):
+                raise AICodeError(
+                    f"{stmt.name} expects {len(field_names)} arguments, got {len(args)}"
+                )
             instance = {}
-            for field in stmt.fields:
-                if field.name in kwargs:
-                    instance[field.name] = kwargs[field.name]
-                else:
-                    raise AICodeError(f"Missing field: {field.name}")
+            for i, name in enumerate(field_names):
+                instance[name] = args[i]
             return instance
 
         struct_factory.__name__ = stmt.name
