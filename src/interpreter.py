@@ -7,7 +7,7 @@ from typing import List, Any, Optional
 from src.compiler import BytecodeCompiler, CompilerError
 from src.vm import VirtualMachine, VMError
 from src.stdlib_ai import StdlibError
-from src.module_system import get_module_manager, ModuleError
+from src.module_system import get_module_manager, ModuleError, CircularImportError
 from src.ast_nodes import ImportStmt, Program
 from src import ast_nodes as ast
 
@@ -47,18 +47,30 @@ class Interpreter:
                 self._handle_import(stmt)
 
     def _handle_import(self, stmt: ImportStmt):
-        """Handle a single import statement"""
+        """Handle a single import statement
+
+        Supports:
+        - import math              -> Namespace import
+        - import math as m        -> With alias
+        - import math { PI, sqrt } -> Selective import
+        - from math import PI, sqrt -> Alternative syntax
+        """
         try:
             if stmt.names:
-                # Import specific names: import math { pi, sin }
-                self.module_manager.import_names(
+                # Selective import: import module { name1, name2 }
+                # Or: from module import name1, name2
+                self.module_manager.import_selective(
                     stmt.module, stmt.names, self.vm.globals
                 )
             else:
-                # Import all or with alias: import math OR import math as m
-                self.module_manager.import_all(stmt.module, self.vm.globals, stmt.alias)
+                # Namespace import: import module [as alias]
+                self.module_manager.import_module(
+                    stmt.module, self.vm.globals, alias=stmt.alias
+                )
         except ModuleError as e:
             raise AICodeError(f"Import error: {e}")
+        except CircularImportError as e:
+            raise AICodeError(f"Circular import error: {e}")
 
     def _collect_imported_names(self, program: Program) -> List[str]:
         """Collect names that are imported from other modules"""
@@ -110,6 +122,8 @@ class Interpreter:
             raise AICodeError(f"Runtime error: {e}")
         except ModuleError as e:
             raise AICodeError(f"Module error: {e}")
+        except CircularImportError as e:
+            raise AICodeError(f"Circular import error: {e}")
 
         return self.output
 

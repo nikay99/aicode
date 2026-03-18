@@ -5,23 +5,18 @@ AICode CLI - Command Line Interface for AICode Programming Language
 AICode is a programming language designed specifically for LLMs, using mathematical
 Unicode symbols to achieve 40-60% token reduction compared to Python.
 
-Usage:
-    aic run <file>       Run an AICode file
-    aic repl             Start interactive REPL
-    aic tokenize <file>  Tokenize and display tokens
-    aic parse <file>     Parse and display AST
-    aic compile <file>   Compile to bytecode and display
-    aic check <file>     Type check a file without running
-    aic --version        Show version
-    aic --help           Show help
+Enhanced version with project management, build, test, and format commands
 """
 
 import sys
 import argparse
+import os
+import pickle
+import time
 from pathlib import Path
 from typing import List, Optional
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "AICode"))
 
 from src import __version__
 from src.lexer import tokenize, Token, TokenType
@@ -30,7 +25,25 @@ from src.interpreter import Interpreter, AICodeError
 from src.compiler import BytecodeCompiler, CompilerError
 from src.vm import VirtualMachine, VMError
 from src.bytecode import BytecodeModule
-from src.type_checker import TypeChecker
+from src.type_checker import TypeChecker, TypeError as TCTypeError
+
+
+# ANSI Farbcodes für Terminal
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+    GRAY = "\033[90m"
+
+
+def colorize(text: str, color: str) -> str:
+    """Färbe Text ein"""
+    return f"{color}{text}{Colors.RESET}"
 
 
 def read_file(filepath: str) -> str:
@@ -56,10 +69,150 @@ def read_file(filepath: str) -> str:
         sys.exit(1)
 
 
+def get_source_line(filepath: str, line_num: int) -> str:
+    """Liest eine bestimmte Zeile aus einer Datei"""
+    try:
+        with open(filepath, "r") as f:
+            lines = f.readlines()
+            if 0 < line_num <= len(lines):
+                return lines[line_num - 1].rstrip()
+    except:
+        pass
+    return ""
+
+
+def print_error(filepath: str, line: int, column: int, code: str, message: str, source_line: str = ""):
+    """Schöne Fehlerausgabe mit Farben"""
+    print()
+    print(colorize(f"Error [{code}] at {filepath}:{line}:{column}", Colors.RED))
+    print(colorize("   |", Colors.GRAY))
+    print(colorize(f"{line:2} |", Colors.GRAY), source_line if source_line else "...")
+    
+    if source_line and column > 0:
+        pointer = " " * (column - 1) + "^" * min(len(source_line) - column + 1, 10)
+        print(colorize("   |", Colors.GRAY), colorize(pointer, Colors.RED))
+    
+    print()
+    print(colorize(message, Colors.BOLD))
+    print()
+
+
 def format_token(token: Token) -> str:
     """Format a token for display."""
     value_str = f" = {token.value!r}" if token.value is not None and token.value != token.type.name else ""
     return f"{token.line:4}:{token.column:3}  {token.type.name:15} {value_str}"
+
+
+def init_project(project_name: str):
+    """Erstellt ein neues Projekt-Template"""
+    project_path = Path(project_name)
+    
+    if project_path.exists():
+        print(colorize(f"Error: Directory '{project_name}' already exists", Colors.RED))
+        sys.exit(1)
+    
+    print(colorize(f"Creating new AICode project: {project_name}", Colors.CYAN))
+    
+    # Erstelle Verzeichnisstruktur
+    (project_path / "lib").mkdir(parents=True)
+    (project_path / "tests").mkdir(parents=True)
+    
+    # main.aic
+    main_content = '''# Main entry point for {project_name}
+
+fn main()
+  println("Hello, {project_name}!")
+
+main()
+'''.format(project_name=project_name)
+    
+    (project_path / "main.aic").write_text(main_content)
+    
+    # aicode.toml
+    toml_content = f'''[project]
+name = "{project_name}"
+version = "0.1.0"
+description = "A new AICode project"
+
+[dependencies]
+# Add dependencies here
+
+[build]
+entry = "main.aic"
+output = "build"
+'''
+    
+    (project_path / "aicode.toml").write_text(toml_content)
+    
+    # Beispiel-Test
+    test_content = '''# Test suite for {project_name}
+
+fn test_addition()
+  let result = 2 + 2
+  assert(result == 4)
+
+test_addition()
+'''.format(project_name=project_name)
+    
+    (project_path / "tests" / "test_main.aic").write_text(test_content)
+    
+    print(colorize(f"✓ Created project '{project_name}'", Colors.GREEN))
+    print()
+    print(colorize("Project structure:", Colors.CYAN))
+    print(f"  {project_name}/")
+    print(f"  ├── main.aic")
+    print(f"  ├── lib/")
+    print(f"  ├── tests/")
+    print(f"  └── aicode.toml")
+    print()
+    print(colorize("Get started:", Colors.CYAN))
+    print(f"  cd {project_name}")
+    print(f"  aic run main.aic")
+
+
+def cmd_build(args):
+    """Kompiliert eine Datei zu Bytecode"""
+    input_path = Path(args.file)
+    
+    if not input_path.exists():
+        print(colorize(f"Error: File not found: {args.file}", Colors.RED))
+        sys.exit(1)
+    
+    output = args.output if args.output else input_path.stem + ".aicc"
+    
+    print(colorize(f"Building {args.file}...", Colors.CYAN))
+    
+    try:
+        source = read_file(args.file)
+        
+        # Parse
+        program = parse(source)
+        print(colorize("  ✓ Parsed", Colors.GREEN))
+        
+        # Compile
+        compiler = BytecodeCompiler()
+        module = compiler.compile_program(program)
+        print(colorize("  ✓ Compiled", Colors.GREEN))
+        
+        # Speichern
+        with open(output, "wb") as f:
+            pickle.dump(module, f)
+        
+        print(colorize(f"  ✓ Saved to {output}", Colors.GREEN))
+        
+        # Statistiken
+        file_size = Path(output).stat().st_size
+        print()
+        print(colorize(f"Build successful: {file_size} bytes", Colors.GREEN))
+        
+    except ParseError as e:
+        source_line = get_source_line(args.file, getattr(e, 'line', 1))
+        print_error(args.file, getattr(e, 'line', 1), getattr(e, 'column', 1), 
+                   "E201", str(e), source_line)
+        sys.exit(1)
+    except Exception as e:
+        print(colorize(f"Build Error: {e}", Colors.RED))
+        sys.exit(1)
 
 
 def cmd_run(args):
@@ -75,19 +228,15 @@ def cmd_run(args):
             print(line)
             
     except ParseError as e:
-        print(f"Parse Error: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+        source_line = get_source_line(args.file, getattr(e, 'line', 1))
+        print_error(args.file, getattr(e, 'line', 1), getattr(e, 'column', 1),
+                   "E201", str(e), source_line)
         sys.exit(1)
     except AICodeError as e:
-        print(f"Runtime Error: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+        print(colorize(f"Runtime Error: {e}", Colors.RED))
         sys.exit(1)
     except Exception as e:
-        print(f"Internal Error: {e}", file=sys.stderr)
+        print(colorize(f"Internal Error: {e}", Colors.RED))
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -96,9 +245,9 @@ def cmd_run(args):
 
 def cmd_repl(args):
     """Start the interactive REPL."""
-    print(f"AICode v{__version__} REPL")
-    print("Type 'exit', 'quit', or press Ctrl+D to exit")
-    print("Type 'help' for REPL commands")
+    print(colorize(f"AICode v{__version__} REPL", Colors.CYAN))
+    print(colorize("Type 'exit', 'quit', or press Ctrl+D to exit", Colors.GRAY))
+    print(colorize("Type 'help' for REPL commands", Colors.GRAY))
     print()
     
     interpreter = Interpreter()
@@ -110,7 +259,7 @@ def cmd_repl(args):
             if in_multiline:
                 prompt = "... "
             else:
-                prompt = ">>> " if args.prompt == "python" else "> "
+                prompt = ">>> " if args.prompt == "python" else colorize("> ", Colors.CYAN)
             
             line = input(prompt)
             
@@ -147,11 +296,11 @@ def cmd_repl(args):
                 for output in result:
                     print(output)
             except ParseError as e:
-                print(f"Parse Error: {e}")
+                print(colorize(f"Parse Error: {e}", Colors.RED))
             except AICodeError as e:
-                print(f"Error: {e}")
+                print(colorize(f"Error: {e}", Colors.RED))
             except Exception as e:
-                print(f"Internal Error: {e}")
+                print(colorize(f"Internal Error: {e}", Colors.RED))
                 if args.verbose:
                     import traceback
                     traceback.print_exc()
@@ -190,17 +339,20 @@ def cmd_tokenize(args):
     try:
         tokens = tokenize(source)
         
-        print(f"Tokens from {args.file}:")
-        print("-" * 50)
+        print(colorize(f"Tokens from {args.file}:", Colors.CYAN))
+        print(colorize("-" * 50, Colors.GRAY))
         
         for token in tokens:
-            print(format_token(token))
+            token_type = colorize(f"{token.type.name:15}", Colors.YELLOW)
+            value = repr(token.value) if token.value is not None else ""
+            location = colorize(f"{token.line:3}:{token.column:3}", Colors.GRAY)
+            print(f"  {location}  {token_type}  {value}")
             
-        print("-" * 50)
+        print(colorize("-" * 50, Colors.GRAY))
         print(f"Total tokens: {len(tokens)}")
         
     except Exception as e:
-        print(f"Error tokenizing file: {e}", file=sys.stderr)
+        print(colorize(f"Error tokenizing file: {e}", Colors.RED))
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -214,19 +366,18 @@ def cmd_parse(args):
     try:
         program = parse(source)
         
-        print(f"AST from {args.file}:")
-        print("=" * 60)
+        print(colorize(f"AST from {args.file}:", Colors.CYAN))
+        print(colorize("=" * 60, Colors.GRAY))
         print_ast(program)
-        print("=" * 60)
+        print(colorize("=" * 60, Colors.GRAY))
         
     except ParseError as e:
-        print(f"Parse Error: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+        source_line = get_source_line(args.file, getattr(e, 'line', 1))
+        print_error(args.file, getattr(e, 'line', 1), getattr(e, 'column', 1),
+                   "E201", str(e), source_line)
         sys.exit(1)
     except Exception as e:
-        print(f"Error parsing file: {e}", file=sys.stderr)
+        print(colorize(f"Error parsing file: {e}", Colors.RED))
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -236,15 +387,16 @@ def cmd_parse(args):
 def print_ast(node, indent: int = 0, prefix: str = ""):
     """Print AST node in a formatted way."""
     spacing = "  " * indent
+    color = Colors.CYAN if indent == 0 else Colors.YELLOW
     
     if node is None:
-        print(f"{spacing}{prefix}None")
+        print(colorize(f"{spacing}{prefix}None", Colors.GRAY))
         return
     
     node_type = type(node).__name__
     
     if hasattr(node, "__dataclass_fields__"):
-        print(f"{spacing}{prefix}{node_type}")
+        print(colorize(f"{spacing}{prefix}{node_type}", color))
         for field_name in node.__dataclass_fields__:
             field_value = getattr(node, field_name)
             if field_name.startswith("_"):
@@ -266,12 +418,12 @@ def print_ast(node, indent: int = 0, prefix: str = ""):
             else:
                 print(f"{spacing}  {field_name}: {repr(field_value)}")
     elif isinstance(node, (list, tuple)):
-        print(f"{spacing}{prefix}[")
+        print(colorize(f"{spacing}{prefix}["))
         for item in node:
             print_ast(item, indent + 1)
-        print(f"{spacing}]")
+        print(colorize(f"{spacing}]"))
     else:
-        print(f"{spacing}{prefix}{repr(node)}")
+        print(colorize(f"{spacing}{prefix}{repr(node)}", Colors.GREEN))
 
 
 def cmd_compile(args):
@@ -284,8 +436,8 @@ def cmd_compile(args):
         compiler = BytecodeCompiler()
         module = compiler.compile_program(program)
         
-        print(f"Bytecode from {args.file}:")
-        print("=" * 60)
+        print(colorize(f"Bytecode from {args.file}:", Colors.CYAN))
+        print(colorize("=" * 60, Colors.GRAY))
         
         if args.verbose:
             print("\nConstants:")
@@ -305,17 +457,17 @@ def cmd_compile(args):
             for i, instr in enumerate(func.code):
                 print(f"    {i:4}: {instr}")
         
-        print("=" * 60)
+        print(colorize("=" * 60, Colors.GRAY))
         print(f"Compiled {len(module.functions)} function(s)")
         
     except ParseError as e:
-        print(f"Parse Error: {e}", file=sys.stderr)
+        print(colorize(f"Parse Error: {e}", Colors.RED))
         sys.exit(1)
     except CompilerError as e:
-        print(f"Compilation Error: {e}", file=sys.stderr)
+        print(colorize(f"Compilation Error: {e}", Colors.RED))
         sys.exit(1)
     except Exception as e:
-        print(f"Error compiling file: {e}", file=sys.stderr)
+        print(colorize(f"Error compiling file: {e}", Colors.RED))
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -325,33 +477,151 @@ def cmd_compile(args):
 def cmd_check(args):
     """Type check a file without running."""
     source = read_file(args.file)
+    
+    def do_check():
+        try:
+            program = parse(source)
+            
+            type_checker = TypeChecker()
+            bindings = type_checker.check_program(program)
+            
+            if args.verbose:
+                print(colorize(f"Type environment for {args.file}:", Colors.CYAN))
+                print(colorize("-" * 50, Colors.GRAY))
+                for name, scheme in bindings.items():
+                    print(f"  {name}: {scheme}")
+                print(colorize("-" * 50, Colors.GRAY))
+            
+            print(colorize(f"✓ {args.file} passed type checking", Colors.GREEN))
+            return True
+            
+        except ParseError as e:
+            source_line = get_source_line(args.file, getattr(e, 'line', 1))
+            print_error(args.file, getattr(e, 'line', 1), getattr(e, 'column', 1),
+                       "E201", str(e), source_line)
+            return False
+        except TCTypeError as e:
+            print(colorize(f"✗ Type Error: {e}", Colors.RED))
+            return False
+    
+    if args.watch:
+        print(colorize(f"Watching {args.file} for changes...", Colors.CYAN))
+        print(colorize("Press Ctrl+C to stop", Colors.GRAY))
+        print()
+        
+        last_mtime = 0
+        try:
+            while True:
+                current_mtime = Path(args.file).stat().st_mtime
+                if current_mtime != last_mtime:
+                    last_mtime = current_mtime
+                    print(colorize(f"[{time.strftime('%H:%M:%S')}] Checking...", Colors.GRAY))
+                    do_check()
+                    print()
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print()
+            print(colorize("Stopped watching", Colors.CYAN))
+    else:
+        success = do_check()
+        sys.exit(0 if success else 1)
 
+
+def cmd_test(args):
+    """Führt Tests aus"""
+    test_dir = Path("tests")
+    if not test_dir.exists():
+        print(colorize("Error: No tests/ directory found", Colors.RED))
+        sys.exit(1)
+    
+    print(colorize("Running tests...", Colors.CYAN))
+    print()
+    
+    # Suche Test-Dateien
+    if args.pattern:
+        test_files = list(test_dir.glob(f"*{args.pattern}*.aic"))
+    else:
+        test_files = list(test_dir.glob("*.aic"))
+    
+    if not test_files:
+        print(colorize("No test files found", Colors.YELLOW))
+        return
+    
+    passed = 0
+    failed = 0
+    
+    for test_file in sorted(test_files):
+        print(colorize(f"Running {test_file}...", Colors.CYAN), end=" ")
+        
+        try:
+            source = read_file(str(test_file))
+            program = parse(source)
+            interpreter = Interpreter()
+            interpreter.interpret(program)
+            print(colorize("✓ PASS", Colors.GREEN))
+            passed += 1
+        except Exception as e:
+            print(colorize("✗ FAIL", Colors.RED))
+            if args.verbose:
+                print(colorize(f"    Error: {e}", Colors.RED))
+            failed += 1
+    
+    print()
+    total = passed + failed
+    if failed == 0:
+        print(colorize(f"All {total} tests passed!", Colors.GREEN))
+    else:
+        print(colorize(f"{passed}/{total} tests passed", Colors.YELLOW))
+        print(colorize(f"{failed} tests failed", Colors.RED))
+
+
+def cmd_format(args):
+    """Formatiert eine AICode-Datei"""
     try:
+        source = read_file(args.file)
+        
+        # Parse um zu validieren
         program = parse(source)
-
-        type_checker = TypeChecker()
-        bindings = type_checker.check_program(program)
-
-        if args.verbose:
-            print(f"Type environment for {args.file}:")
-            print("-" * 50)
-            for name, scheme in bindings.items():
-                print(f"  {name}: {scheme}")
-            print("-" * 50)
-
-        print(f"✓ {args.file} passed type checking")
-
+        
+        # Einfache Formatierung
+        lines = source.split('\n')
+        formatted_lines = []
+        indent_level = 0
+        indent_size = 2
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # Reduziere Einrückung für bestimmte Schlüsselwörter am Zeilenanfang
+            if stripped.startswith(('else', 'elif', 'catch', '}')):
+                indent_level = max(0, indent_level - 1)
+            
+            # Füge Einrückung hinzu
+            if stripped:
+                formatted_lines.append(' ' * (indent_level * indent_size) + stripped)
+            else:
+                formatted_lines.append('')
+            
+            # Erhöhe Einrückung für bestimmte Schlüsselwörter
+            if stripped.endswith((':', '{', '(')) or stripped.startswith(('fn', 'if', 'else', 'for', 'while', 'match', 'struct', 'enum')):
+                if not stripped.endswith(')'):
+                    indent_level += 1
+            
+            # Reduziere bei schließenden Klammern
+            if stripped.endswith(')') or stripped.startswith('}'):
+                indent_level = max(0, indent_level - 1)
+        
+        formatted = '\n'.join(formatted_lines)
+        
+        if args.in_place:
+            with open(args.file, "w") as f:
+                f.write(formatted)
+            print(colorize(f"✓ Formatted {args.file}", Colors.GREEN))
+        else:
+            print(formatted)
+        
     except ParseError as e:
-        print(f"Parse Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except TypeError as e:
-        print(f"Type Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error during type checking: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+        print(colorize(f"Parse Error (cannot format): {e}", Colors.RED))
         sys.exit(1)
 
 
@@ -363,12 +633,17 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  aic run hello.aic          Run an AICode file
-  aic repl                   Start interactive REPL
-  aic tokenize hello.aic     Show tokens
-  aic parse hello.aic        Show AST
-  aic compile hello.aic      Show bytecode
-  aic check hello.aic        Type check only
+  aic init myproject          Create new project
+  aic run hello.aic           Run an AICode file
+  aic build hello.aic -o out  Compile to bytecode
+  aic test                    Run all tests
+  aic check hello.aic         Type check a file
+  aic check hello.aic --watch Watch mode for type checking
+  aic format hello.aic        Format a file
+  aic repl                    Start interactive REPL
+  aic tokenize hello.aic      Show tokens
+  aic parse hello.aic         Show AST
+  aic compile hello.aic       Show bytecode
 
 For more information, visit: https://github.com/aicode-ai/aicode
         """
@@ -387,6 +662,17 @@ For more information, visit: https://github.com/aicode-ai/aicode
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    # init command
+    init_parser = subparsers.add_parser(
+        "init",
+        help="Create a new AICode project",
+        description="Create a new project with standard directory structure."
+    )
+    init_parser.add_argument(
+        "project_name",
+        help="Name of the new project"
+    )
     
     # run command
     run_parser = subparsers.add_parser(
@@ -450,9 +736,20 @@ For more information, visit: https://github.com/aicode-ai/aicode
         "file",
         help="Path to the AICode source file"
     )
-    compile_parser.add_argument(
-        "--output", "-o",
-        help="Write bytecode to file instead of displaying"
+    
+    # build command
+    build_parser = subparsers.add_parser(
+        "build",
+        help="Compile to bytecode file",
+        description="Compile an AICode file to bytecode and save as .aicc file."
+    )
+    build_parser.add_argument(
+        "file",
+        help="Path to the AICode source file"
+    )
+    build_parser.add_argument(
+        "-o", "--output",
+        help="Output file (default: <input>.aicc)"
     )
     
     # check command
@@ -464,6 +761,39 @@ For more information, visit: https://github.com/aicode-ai/aicode
     check_parser.add_argument(
         "file",
         help="Path to the AICode source file"
+    )
+    check_parser.add_argument(
+        "-w", "--watch",
+        action="store_true",
+        help="Watch mode - auto-reload on file changes"
+    )
+    
+    # test command
+    test_parser = subparsers.add_parser(
+        "test",
+        help="Run tests",
+        description="Run all tests in the tests/ directory."
+    )
+    test_parser.add_argument(
+        "pattern",
+        nargs="?",
+        help="Optional pattern to filter test files"
+    )
+    
+    # format command
+    format_parser = subparsers.add_parser(
+        "format",
+        help="Format an AICode file",
+        description="Format an AICode file with consistent indentation."
+    )
+    format_parser.add_argument(
+        "file",
+        help="Path to the AICode source file"
+    )
+    format_parser.add_argument(
+        "-i", "--in-place",
+        action="store_true",
+        help="Format in place (modify the file directly)"
     )
     
     return parser
@@ -479,18 +809,25 @@ def main():
         sys.exit(0)
     
     commands = {
+        "init": init_project,
         "run": cmd_run,
         "repl": cmd_repl,
         "tokenize": cmd_tokenize,
         "parse": cmd_parse,
         "compile": cmd_compile,
+        "build": cmd_build,
         "check": cmd_check,
+        "test": cmd_test,
+        "format": cmd_format,
     }
     
     if args.command in commands:
-        commands[args.command](args)
+        if args.command == "init":
+            commands[args.command](args.project_name)
+        else:
+            commands[args.command](args)
     else:
-        print(f"Unknown command: {args.command}", file=sys.stderr)
+        print(colorize(f"Unknown command: {args.command}", Colors.RED), file=sys.stderr)
         parser.print_help()
         sys.exit(1)
 

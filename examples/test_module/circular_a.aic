@@ -1,0 +1,9 @@
+# Circular import test - Module A
+# Imports module B which imports module A
+
+let A_VALUE = "from A"
+
+import circular_b
+
+fn get_a()
+  return A_VALUE

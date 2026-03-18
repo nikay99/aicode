@@ -1,0 +1,19 @@
+# Math test module for imports
+# Tests namespace isolation
+
+let PI = 3.14159265359
+let E = 2.71828182846
+
+fn square(x)
+  return x * x
+
+fn cube(x)
+  return x * x * x
+
+fn _private_math(x)
+  return x * 2
+
+export fn factorial(n)
+  if n <= 1
+    return 1
+  return n * factorial(n - 1)

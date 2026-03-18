@@ -1,2 +1,3 @@
 [console_scripts]
 aic = main:main
+aicode = main:main

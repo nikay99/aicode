@@ -1,0 +1,122 @@
+{
+  "fibonacci_recursive_n10": {
+    "duration_ms": 5.4,
+    "memory_kb": 29.95,
+    "iterations": 1,
+    "details": {"n": 10, "complexity": "O(2^n)"}
+  },
+  "fibonacci_recursive_n15": {
+    "duration_ms": 48.03,
+    "memory_kb": 31.53,
+    "iterations": 1,
+    "details": {"n": 15, "complexity": "O(2^n)"}
+  },
+  "fibonacci_recursive_n20": {
+    "duration_ms": 530.38,
+    "memory_kb": 32.46,
+    "iterations": 1,
+    "details": {"n": 20, "complexity": "O(2^n)"}
+  },
+  "fibonacci_iterative_n1000": {
+    "duration_ms": 31.81,
+    "memory_kb": 28.74,
+    "iterations": 10,
+    "details": {"n": 1000, "complexity": "O(n)"}
+  },
+  "list_map_size100": {
+    "duration_ms": 1.28,
+    "memory_kb": 23.17,
+    "iterations": 100,
+    "details": {"list_size": 100, "operation": "map"}
+  },
+  "list_map_size1000": {
+    "duration_ms": 9.83,
+    "memory_kb": 82.11,
+    "iterations": 100,
+    "details": {"list_size": 1000, "operation": "map"}
+  },
+  "list_filter_size1000": {
+    "duration_ms": 14.62,
+    "memory_kb": 54.54,
+    "iterations": 100,
+    "details": {"list_size": 1000, "operation": "filter"}
+  },
+  "list_reduce_size1000": {
+    "duration_ms": 10.15,
+    "memory_kb": 50.13,
+    "iterations": 100,
+    "details": {"list_size": 1000, "operation": "reduce"}
+  },
+  "compilation_100_lines": {
+    "duration_ms": 4.04,
+    "memory_kb": 115.80,
+    "iterations": 10,
+    "details": {"lines": 100, "operation": "compile_only"}
+  },
+  "compilation_500_lines": {
+    "duration_ms": 24.57,
+    "memory_kb": 584.63,
+    "iterations": 10,
+    "details": {"lines": 500, "operation": "compile_only"}
+  },
+  "compilation_1000_lines": {
+    "duration_ms": 57.32,
+    "memory_kb": 1182.76,
+    "iterations": 10,
+    "details": {"lines": 1000, "operation": "compile_only"}
+  },
+  "full_execution_small": {
+    "duration_ms": 0.18,
+    "memory_kb": 10.39,
+    "iterations": 50,
+    "details": {"complexity": "small"}
+  },
+  "full_execution_medium": {
+    "duration_ms": 0.63,
+    "memory_kb": 22.96,
+    "iterations": 50,
+    "details": {"complexity": "medium"}
+  },
+  "full_execution_large": {
+    "duration_ms": 1.95,
+    "memory_kb": 20.76,
+    "iterations": 50,
+    "details": {"complexity": "large"}
+  },
+  "function_calls_depth100": {
+    "duration_ms": 3.04,
+    "memory_kb": 47.37,
+    "iterations": 100,
+    "details": {"call_depth": 100}
+  },
+  "function_calls_depth500": {
+    "duration_ms": 13.94,
+    "memory_kb": 144.85,
+    "iterations": 100,
+    "details": {"call_depth": 500}
+  },
+  "while_loop_1000_iterations": {
+    "duration_ms": 23.42,
+    "memory_kb": 14.65,
+    "iterations": 10,
+    "details": {"loop_iterations": 1000}
+  },
+  "while_loop_10000_iterations": {
+    "duration_ms": 239.81,
+    "memory_kb": 14.65,
+    "iterations": 10,
+    "details": {"loop_iterations": 10000}
+  },
+  "for_loop_100_iterations": {
+    "duration_ms": 1.89,
+    "memory_kb": 16.75,
+    "iterations": 10,
+    "details": {"loop_iterations": 100}
+  },
+  "for_loop_1000_iterations": {
+    "duration_ms": 15.51,
+    "memory_kb": 44.13,
+    "iterations": 10,
+    "details": {"loop_iterations": 1000}
+  }
+}

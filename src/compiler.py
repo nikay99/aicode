@@ -402,6 +402,11 @@ class FunctionCompiler:
 
             # TODO: Add to module
 
+        elif isinstance(stmt, ast.ImportStmt):
+            # Import statements are processed by the Interpreter before compilation
+            # So they're a NoOp in the compiler
+            pass
+
         else:
             raise CompilerError("E204", f"Unsupported statement: {type(stmt).__name__}")
 
@@ -507,7 +512,20 @@ class BytecodeCompiler:
 
         for stmt in program.statements:
             if not isinstance(stmt, ast.FnStmt):
-                main_compiler.compile_stmt(stmt)
+                # Handle top-level LetStmt and ConstStmt as globals for module exports
+                if isinstance(stmt, (ast.LetStmt, ast.ConstStmt)):
+                    # Compile value expression
+                    main_compiler.compile_expr(stmt.value)
+                    # Store in global variable
+                    if stmt.name not in self.module.globals:
+                        self.module.globals.append(stmt.name)
+                    global_idx = self.module.globals.index(stmt.name)
+                    main_compiler.builder.emit(OpCode.STORE_GLOBAL, global_idx)
+                elif isinstance(stmt, ast.ImportStmt):
+                    # Skip import statements (handled by interpreter)
+                    pass
+                else:
+                    main_compiler.compile_stmt(stmt)
 
         # Add final halt
         main_compiler.builder.emit(OpCode.HALT)

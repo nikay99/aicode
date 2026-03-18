@@ -90,7 +90,12 @@ class Parser:
             self.expect(TokenType.ARROW)
             return_type = self.parse_type()
             if return_type is None:
-                raise ParserError("E209", "Expected return type in function type", self.peek().line, self.peek().column)
+                raise ParserError(
+                    "E209",
+                    "Expected return type in function type",
+                    self.peek().line,
+                    self.peek().column,
+                )
             return FunctionType(param_types, return_type)
 
         return None
@@ -257,7 +262,9 @@ class Parser:
         if self.match(TokenType.LBRACE):
             return self.parse_dict()
 
-        raise unexpected_token(self.peek().type.name, line=self.peek().line, column=self.peek().column)
+        raise unexpected_token(
+            self.peek().type.name, line=self.peek().line, column=self.peek().column
+        )
 
     def parse_lambda_short(self) -> LambdaExpr:
         """Kurze Lambda-Form: \\x: x * 2"""
@@ -286,7 +293,7 @@ class Parser:
             return_type = self.parse_type()
 
         self.expect(TokenType.COLON)
-        
+
         if self.check(TokenType.NEWLINE):
             self.advance()
             self.expect(TokenType.INDENT)
@@ -342,7 +349,12 @@ class Parser:
         elif self.match(TokenType.STRING):
             key = self.peek(-1).value
         else:
-            raise ParserError("E218", "Expected identifier or string for dict key", self.peek().line, self.peek().column)
+            raise ParserError(
+                "E218",
+                "Expected identifier or string for dict key",
+                self.peek().line,
+                self.peek().column,
+            )
 
         self.expect(TokenType.COLON)
         value = self.parse_expression()
@@ -398,7 +410,12 @@ class Parser:
 
             return IdentifierPattern(name)
 
-        raise unexpected_token(self.peek().type.name, context="in pattern", line=self.peek().line, column=self.peek().column)
+        raise unexpected_token(
+            self.peek().type.name,
+            context="in pattern",
+            line=self.peek().line,
+            column=self.peek().column,
+        )
 
     def parse_if_expr(self) -> IfExpr:
         """Parsed if expr ..."""
@@ -458,6 +475,8 @@ class Parser:
             return self.parse_while()
         if self.match(TokenType.IMPORT):
             return self.parse_import()
+        if self.match(TokenType.FROM):
+            return self.parse_from_import()
         if self.match(TokenType.EXPORT):
             return self.parse_export()
 
@@ -614,19 +633,26 @@ class Parser:
         return WhileStmt(condition, body)
 
     def parse_import(self) -> ImportStmt:
-        """Parsed import module oder from module import name1, name2"""
-        if self.check(TokenType.IDENTIFIER):
-            module = self.advance().value
+        """Parsed import module [as alias] oder import module { name1, name2 }"""
+        module = self.expect(TokenType.IDENTIFIER).value
 
-            # import module as alias
-            alias = None
-            if self.match(TokenType.AS):
-                alias = self.expect(TokenType.IDENTIFIER).value
-
+        # import module as alias
+        if self.match(TokenType.AS):
+            alias = self.expect(TokenType.IDENTIFIER).value
             return ImportStmt(module, None, alias)
 
-        # from module import ...
-        self.expect(TokenType.FROM)
+        # import module { name1, name2 }
+        if self.match(TokenType.LBRACE):
+            names = [self.expect(TokenType.IDENTIFIER).value]
+            while self.match(TokenType.COMMA):
+                names.append(self.expect(TokenType.IDENTIFIER).value)
+            self.expect(TokenType.RBRACE)
+            return ImportStmt(module, names, None)
+
+        return ImportStmt(module, None, None)
+
+    def parse_from_import(self) -> ImportStmt:
+        """Parsed from module import name1, name2"""
         module = self.expect(TokenType.IDENTIFIER).value
         self.expect(TokenType.IMPORT)
 
@@ -650,7 +676,12 @@ class Parser:
             stmt = self.parse_enum()
             stmt.exported = True
             return stmt
-        raise ParserError("E215", "Expected fn, struct, or enum after export", self.peek().line, self.peek().column)
+        raise ParserError(
+            "E215",
+            "Expected fn, struct, or enum after export",
+            self.peek().line,
+            self.peek().column,
+        )
 
     # === Program ===
 
