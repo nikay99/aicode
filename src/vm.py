@@ -44,7 +44,6 @@ class VirtualMachine:
         self._setup_builtins()
 
     def _setup_builtins(self):
-        """Setup built-in functions"""
         self.globals["print"] = self._builtin_print
         self.globals["println"] = self._builtin_println
         self.globals["range"] = self._builtin_range
@@ -52,6 +51,28 @@ class VirtualMachine:
         self.globals["filter"] = self._builtin_filter
         self.globals["reduce"] = self._builtin_reduce
         self.globals["length"] = len
+        self.globals["str"] = str
+        self.globals["int"] = int
+        self.globals["float"] = float
+        self.globals["keys"] = lambda d: list(d.keys()) if isinstance(d, dict) else []
+        self.globals["values"] = lambda d: (
+            list(d.values()) if isinstance(d, dict) else []
+        )
+        self.globals["Ok"] = lambda v: ("Ok", v)
+        self.globals["Err"] = lambda v: ("Err", v)
+        self.globals["is_ok"] = lambda r: isinstance(r, tuple) and r[0] == "Ok"
+        self.globals["is_err"] = lambda r: isinstance(r, tuple) and r[0] == "Err"
+        self.globals["unwrap"] = self._builtin_unwrap
+        self.globals["unwrap_or"] = lambda r, default: (
+            r[1] if (isinstance(r, tuple) and r[0] == "Ok") else default
+        )
+
+    def _builtin_unwrap(self, result):
+        if isinstance(result, tuple) and result[0] == "Ok":
+            return result[1]
+        if isinstance(result, tuple) and result[0] == "Err":
+            raise VMError(f"Unwrap on Err: {result[1]}")
+        raise VMError(f"Unwrap on non-Result: {result}")
 
     def _builtin_print(self, *args):
         """Built-in print function"""
@@ -62,7 +83,6 @@ class VirtualMachine:
         print(*args)
 
     def _builtin_range(self, *args):
-        """Built-in range function"""
         if len(args) == 1:
             return list(range(args[0]))
         elif len(args) == 2:
@@ -71,19 +91,30 @@ class VirtualMachine:
             return list(range(args[0], args[1], args[2]))
         raise VMError("range() takes 1-3 arguments")
 
-    def _builtin_map(self, func, lst):
-        """Built-in map function"""
-        return [func(item) for item in lst]
+    def _call_func(self, func, args):
+        if callable(func):
+            return func(*args)
+        elif isinstance(func, BytecodeFunction):
+            new_frame = CallFrame(func)
+            extra = max(0, func.locals_count - len(args))
+            new_frame.locals = list(args) + [None] * extra
+            self.frames.append(new_frame)
+            stack_depth = len(self.frames) - 1
+            while len(self.frames) > stack_depth:
+                self._execute_instruction()
+            return self.pop()
+        raise VMError(f"Cannot call {type(func)}")
 
-    def _builtin_filter(self, func, lst):
-        """Built-in filter function"""
-        return [item for item in lst if func(item)]
+    def _builtin_map(self, lst, func):
+        return [self._call_func(func, [item]) for item in lst]
 
-    def _builtin_reduce(self, func, lst, initial):
-        """Built-in reduce function"""
+    def _builtin_filter(self, lst, func):
+        return [item for item in lst if self._call_func(func, [item])]
+
+    def _builtin_reduce(self, lst, func, initial):
         result = initial
         for item in lst:
-            result = func(result, item)
+            result = self._call_func(func, [result, item])
         return result
 
     def push(self, value: Any):
@@ -103,21 +134,21 @@ class VirtualMachine:
         return self.stack[-(offset + 1)]
 
     def current_frame(self) -> CallFrame:
-        """Get current call frame"""
         if not self.frames:
             raise VMError("No call frame")
         return self.frames[-1]
 
     def run(self, module: BytecodeModule):
-        """Run a bytecode module"""
         self.module = module
 
-        # Initialize globals
         for name in module.globals:
             if name not in self.globals:
                 self.globals[name] = None
 
-        # Start with entry point
+        for func in module.functions:
+            if func.name != "__main__":
+                self.globals[func.name] = func
+
         entry_func = module.functions[module.entry_point]
         frame = CallFrame(entry_func)
         frame.locals = [None] * entry_func.locals_count
@@ -162,11 +193,9 @@ class VirtualMachine:
         elif opcode == OpCode.STORE_LOCAL:
             frame = self.current_frame()
             value = self.pop()
-            # Extend locals if needed
             while len(frame.locals) <= operand:
                 frame.locals.append(None)
             frame.locals[operand] = value
-            self.push(value)  # Keep value on stack for chained assignment
 
         elif opcode == OpCode.LOAD_GLOBAL:
             if self.module is None:
@@ -183,7 +212,6 @@ class VirtualMachine:
             name = self.module.globals[operand] if isinstance(operand, int) else operand
             value = self.pop()
             self.globals[name] = value
-            self.push(value)
 
         elif opcode == OpCode.ADD:
             b = self.pop()
@@ -334,6 +362,37 @@ class VirtualMachine:
                 self.push(obj.get(attr))
             else:
                 self.push(getattr(obj, attr, None))
+
+        elif opcode == OpCode.INDEX_SET:
+            value = self.pop()
+            index = self.pop()
+            obj = self.pop()
+            if isinstance(obj, (list, dict)):
+                obj[index] = value
+            else:
+                raise VMError(f"Cannot index-assign {type(obj)}")
+
+        elif opcode == OpCode.SET_ATTR:
+            value = self.pop()
+            obj = self.pop()
+            attr = frame.function.constants[operand]
+            if isinstance(obj, dict):
+                obj[attr] = value
+            else:
+                setattr(obj, attr, value)
+
+        elif opcode == OpCode.ITER:
+            obj = self.pop()
+            self.push(iter(obj))
+
+        elif opcode == OpCode.ITER_NEXT:
+            iterator = self.peek()
+            try:
+                value = next(iterator)
+                self.push(value)
+            except StopIteration:
+                frame = self.current_frame()
+                frame.ip += operand
 
         elif opcode == OpCode.PRINT:
             value = self.pop()

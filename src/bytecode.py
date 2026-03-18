@@ -187,13 +187,15 @@ class BytecodeBuilder:
             offset = self.labels[label_name] - code_idx - 1
             self.code[code_idx].operand = offset
 
-    def build(self, name: str = "main", arity: int = 0) -> BytecodeFunction:
-        """Build the function"""
+    def build(
+        self, name: str = "main", arity: int = 0, locals_count: int = None
+    ) -> BytecodeFunction:
         self.resolve_labels()
+        actual_locals = locals_count if locals_count is not None else len(self.locals)
         return BytecodeFunction(
             name=name,
             arity=arity,
             code=self.code,
             constants=self.constants,
-            locals_count=len(self.locals),
+            locals_count=actual_locals,
         )
