@@ -15,7 +15,7 @@ class TestREPLBasic(unittest.TestCase):
     """Test basic REPL functionality"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def _start_repl(self):
         cmd = [sys.executable, self.main_py, "repl"]
@@ -60,7 +60,7 @@ class TestREPLExecution(unittest.TestCase):
     """Test REPL code execution"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def _start_repl(self):
         cmd = [sys.executable, self.main_py, "repl"]
@@ -109,7 +109,7 @@ class TestREPLPrompt(unittest.TestCase):
     """Test REPL prompt styles"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def test_repl_python_prompt(self):
         cmd = [sys.executable, self.main_py, "repl", "--prompt", "python"]
@@ -148,7 +148,7 @@ class TestREPLMultiline(unittest.TestCase):
     """Test REPL multiline input"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def _start_repl(self):
         cmd = [sys.executable, self.main_py, "repl"]
@@ -178,7 +178,7 @@ class TestREPLClear(unittest.TestCase):
     """Test REPL clear command"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def test_repl_clear(self):
         proc = subprocess.Popen(
@@ -200,7 +200,7 @@ class TestREPLParserErrors(unittest.TestCase):
     """Test REPL error handling"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def _start_repl(self):
         cmd = [sys.executable, self.main_py, "repl"]
@@ -227,7 +227,7 @@ class TestREPLRuntimeErrors(unittest.TestCase):
     """Test REPL runtime error handling"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def _start_repl(self):
         cmd = [sys.executable, self.main_py, "repl"]

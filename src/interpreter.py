@@ -107,10 +107,12 @@ class Interpreter:
             ]
             filtered_program = Program(filtered_statements)
 
-            # Compile and run with imported names as extra globals
+            # Compile and run with imported names and existing globals
             compiler = BytecodeCompiler()
+            existing_globals = list(self.vm.globals.keys())
+            extra_globals = imported_names + existing_globals
             module = compiler.compile_program(
-                filtered_program, extra_globals=imported_names
+                filtered_program, extra_globals=extra_globals
             )
             self.vm.run(module)
 

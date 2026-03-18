@@ -239,6 +239,8 @@ class VirtualMachine:
         elif opcode == OpCode.DIV:
             b = self.pop()
             a = self.pop()
+            if b == 0:
+                raise VMError("E401", "Division by zero")
             self.push(a / b)
 
         elif opcode == OpCode.MOD:
@@ -370,19 +372,26 @@ class VirtualMachine:
             index = self.pop()
             obj = self.pop()
             if isinstance(obj, list):
+                if not isinstance(index, int):
+                    raise VMError("E402", "List index must be an integer")
+                if index < 0 or index >= len(obj):
+                    raise VMError(
+                        "E404", f"Index {index} out of bounds (0-{len(obj) - 1})"
+                    )
                 self.push(obj[index])
             elif isinstance(obj, dict):
+                if index not in obj:
+                    raise VMError("E405", f"Key not found: {index}")
                 self.push(obj[index])
             else:
-                raise RuntimeError(E408, f"Cannot index {type(obj)}")
+                raise VMError("E408", f"Cannot index {type(obj)}")
 
         elif opcode == OpCode.GET_ATTR:
             obj = self.pop()
             attr = frame.function.constants[operand]
-            if isinstance(obj, dict):
-                self.push(obj.get(attr))
-            else:
-                self.push(getattr(obj, attr, None))
+            if not isinstance(obj, dict):
+                raise VMError("E408", "Attribute access only allowed on dicts")
+            self.push(obj.get(attr))
 
         elif opcode == OpCode.INDEX_SET:
             value = self.pop()
@@ -397,10 +406,9 @@ class VirtualMachine:
             value = self.pop()
             obj = self.pop()
             attr = frame.function.constants[operand]
-            if isinstance(obj, dict):
-                obj[attr] = value
-            else:
-                setattr(obj, attr, value)
+            if not isinstance(obj, dict):
+                raise VMError("E408", "Attribute access only allowed on dicts")
+            obj[attr] = value
 
         elif opcode == OpCode.ITER:
             obj = self.pop()

@@ -81,6 +81,12 @@ E417 = "E417"
 E418 = "E418"
 E419 = "E419"
 E420 = "E420"
+E421 = "E421"
+E422 = "E422"
+E423 = "E423"
+E424 = "E424"
+E425 = "E425"
+E426 = "E426"
 
 
 # Error Messages Dictionary
@@ -96,7 +102,6 @@ ERROR_MESSAGES: Dict[str, str] = {
     E108: "String exceeds maximum length",
     E109: "Invalid identifier",
     E110: "Unexpected character in number",
-    
     # Parser Errors (E2xx)
     E201: "Unexpected token",
     E202: "Expected token not found",
@@ -118,7 +123,6 @@ ERROR_MESSAGES: Dict[str, str] = {
     E218: "Invalid dictionary key",
     E219: "Invalid array literal",
     E220: "Invalid generic type parameters",
-    
     # Type Errors (E3xx)
     E301: "Type mismatch",
     E302: "Undefined variable",
@@ -140,7 +144,6 @@ ERROR_MESSAGES: Dict[str, str] = {
     E318: "Invalid type conversion",
     E319: "Undefined type",
     E320: "Incompatible types in operation",
-    
     # Runtime Errors (E4xx)
     E401: "Division by zero",
     E402: "Index out of bounds",
@@ -162,25 +165,33 @@ ERROR_MESSAGES: Dict[str, str] = {
     E418: "Unknown opcode",
     E419: "Call frame error",
     E420: "Runtime assertion failed",
+    E421: "Path traversal detected",
+    E422: "File not found",
+    E423: "Error reading file",
+    E424: "Error writing file",
+    E425: "File not found for deletion",
+    E426: "Error deleting file",
 }
 
 
 @dataclass
 class StackFrame:
     """Represents a single frame in the stack trace"""
+
     function: str
     line: int
     column: int
     filename: Optional[str] = None
-    
+
     def __str__(self) -> str:
         loc = f"{self.filename}:" if self.filename else ""
         return f"  at {self.function} ({loc}line {self.line}, column {self.column})"
 
 
-@dataclass  
+@dataclass
 class AICodeError(Exception):
     """Base class for all AICode errors"""
+
     code: str
     message: str
     line: int = 0
@@ -188,41 +199,55 @@ class AICodeError(Exception):
     filename: Optional[str] = None
     context: Optional[str] = None
     stack_trace: List[StackFrame] = field(default_factory=list)
-    
+
     def __post_init__(self):
         Exception.__init__(self, self.format_message())
-    
+
     def format_message(self) -> str:
         """Format the error message with context"""
         parts = [f"[{self.code}] {self.message}"]
-        
+
         if self.filename:
             parts.append(f" in {self.filename}")
-        
+
         if self.line > 0:
             loc = f" at line {self.line}"
             if self.column > 0:
                 loc += f", column {self.column}"
             parts.append(loc)
-        
+
         result = "".join(parts)
-        
+
         if self.context:
             result += f"\n  Context: {self.context}"
-        
+
         if self.stack_trace:
-            result += "\nStack trace:\n" + "\n".join(str(frame) for frame in self.stack_trace)
-        
+            result += "\nStack trace:\n" + "\n".join(
+                str(frame) for frame in self.stack_trace
+            )
+
         return result
-    
+
     def __str__(self) -> str:
         return self.format_message()
-    
-    def add_frame(self, function: str, line: int = 0, column: int = 0, filename: Optional[str] = None):
+
+    def add_frame(
+        self,
+        function: str,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+    ):
         """Add a frame to the stack trace"""
         self.stack_trace.append(StackFrame(function, line, column, filename))
-    
-    def with_context(self, line: int = 0, column: int = 0, filename: Optional[str] = None, context: Optional[str] = None) -> "AICodeError":
+
+    def with_context(
+        self,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+        context: Optional[str] = None,
+    ) -> "AICodeError":
         """Return a new error with additional context"""
         return AICodeError(
             code=self.code,
@@ -231,15 +256,22 @@ class AICodeError(Exception):
             column=column if column > 0 else self.column,
             filename=filename or self.filename,
             context=context or self.context,
-            stack_trace=self.stack_trace.copy()
+            stack_trace=self.stack_trace.copy(),
         )
 
 
 class LexerError(AICodeError):
     """Error during lexical analysis (E1xx)"""
-    
-    def __init__(self, code: str, message: Optional[str] = None, line: int = 0, column: int = 0, 
-                 filename: Optional[str] = None, context: Optional[str] = None):
+
+    def __init__(
+        self,
+        code: str,
+        message: Optional[str] = None,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+        context: Optional[str] = None,
+    ):
         if message is None:
             message = ERROR_MESSAGES.get(code, "Unknown lexer error")
         super().__init__(code, message, line, column, filename, context)
@@ -247,9 +279,16 @@ class LexerError(AICodeError):
 
 class ParserError(AICodeError):
     """Error during parsing (E2xx)"""
-    
-    def __init__(self, code: str, message: Optional[str] = None, line: int = 0, column: int = 0,
-                 filename: Optional[str] = None, context: Optional[str] = None):
+
+    def __init__(
+        self,
+        code: str,
+        message: Optional[str] = None,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+        context: Optional[str] = None,
+    ):
         if message is None:
             message = ERROR_MESSAGES.get(code, "Unknown parser error")
         super().__init__(code, message, line, column, filename, context)
@@ -257,28 +296,43 @@ class ParserError(AICodeError):
 
 class TypeCheckError(AICodeError):
     """Error during type checking (E3xx)"""
-    
-    def __init__(self, code: str, message: Optional[str] = None, line: int = 0, column: int = 0,
-                 filename: Optional[str] = None, context: Optional[str] = None, 
-                 expected_type: Optional[str] = None, actual_type: Optional[str] = None):
+
+    def __init__(
+        self,
+        code: str,
+        message: Optional[str] = None,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+        context: Optional[str] = None,
+        expected_type: Optional[str] = None,
+        actual_type: Optional[str] = None,
+    ):
         if message is None:
             message = ERROR_MESSAGES.get(code, "Unknown type error")
-        
+
         if expected_type and actual_type:
             message += f": expected '{expected_type}', found '{actual_type}'"
         elif expected_type:
             message += f": expected '{expected_type}'"
         elif actual_type:
             message += f": found '{actual_type}'"
-            
+
         super().__init__(code, message, line, column, filename, context)
 
 
 class RuntimeError(AICodeError):
     """Error during execution (E4xx)"""
-    
-    def __init__(self, code: str, message: Optional[str] = None, line: int = 0, column: int = 0,
-                 filename: Optional[str] = None, context: Optional[str] = None):
+
+    def __init__(
+        self,
+        code: str,
+        message: Optional[str] = None,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+        context: Optional[str] = None,
+    ):
         if message is None:
             message = ERROR_MESSAGES.get(code, "Unknown runtime error")
         super().__init__(code, message, line, column, filename, context)
@@ -286,37 +340,60 @@ class RuntimeError(AICodeError):
 
 class CompilerError(AICodeError):
     """Error during compilation (can be E2xx or E3xx depending on phase)"""
-    
-    def __init__(self, code: str, message: Optional[str] = None, line: int = 0, column: int = 0,
-                 filename: Optional[str] = None, context: Optional[str] = None):
+
+    def __init__(
+        self,
+        code: str,
+        message: Optional[str] = None,
+        line: int = 0,
+        column: int = 0,
+        filename: Optional[str] = None,
+        context: Optional[str] = None,
+    ):
         if message is None:
             message = ERROR_MESSAGES.get(code, "Unknown compiler error")
         super().__init__(code, message, line, column, filename, context)
 
 
 # Helper functions for creating common errors
-def invalid_character(char: str, line: int = 0, column: int = 0, filename: Optional[str] = None) -> LexerError:
+def invalid_character(
+    char: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> LexerError:
     """Create an invalid character error"""
     return LexerError(E101, f"Invalid character: '{char}'", line, column, filename)
 
 
-def unterminated_string(line: int = 0, column: int = 0, filename: Optional[str] = None) -> LexerError:
+def unterminated_string(
+    line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> LexerError:
     """Create an unterminated string error"""
     return LexerError(E102, "Unterminated string literal", line, column, filename)
 
 
-def invalid_escape_sequence(seq: str, line: int = 0, column: int = 0, filename: Optional[str] = None) -> LexerError:
+def invalid_escape_sequence(
+    seq: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> LexerError:
     """Create an invalid escape sequence error"""
-    return LexerError(E103, f"Invalid escape sequence: '\\{seq}'", line, column, filename)
+    return LexerError(
+        E103, f"Invalid escape sequence: '\\{seq}'", line, column, filename
+    )
 
 
-def invalid_indentation(line: int = 0, column: int = 0, filename: Optional[str] = None) -> LexerError:
+def invalid_indentation(
+    line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> LexerError:
     """Create an invalid indentation error"""
     return LexerError(E105, "Invalid indentation", line, column, filename)
 
 
-def unexpected_token(token: str, expected: Optional[str] = None, line: int = 0, column: int = 0, 
-                    filename: Optional[str] = None, context: Optional[str] = None) -> ParserError:
+def unexpected_token(
+    token: str,
+    expected: Optional[str] = None,
+    line: int = 0,
+    column: int = 0,
+    filename: Optional[str] = None,
+    context: Optional[str] = None,
+) -> ParserError:
     """Create an unexpected token error"""
     msg = f"Unexpected token: '{token}'"
     if expected:
@@ -324,67 +401,118 @@ def unexpected_token(token: str, expected: Optional[str] = None, line: int = 0, 
     return ParserError(E201, msg, line, column, filename, context)
 
 
-def expected_token(expected: str, found: str, line: int = 0, column: int = 0,
-                  filename: Optional[str] = None) -> ParserError:
+def expected_token(
+    expected: str,
+    found: str,
+    line: int = 0,
+    column: int = 0,
+    filename: Optional[str] = None,
+) -> ParserError:
     """Create an expected token not found error"""
-    return ParserError(E202, f"Expected '{expected}', found '{found}'", line, column, filename)
+    return ParserError(
+        E202, f"Expected '{expected}', found '{found}'", line, column, filename
+    )
 
 
-def missing_delimiter(delimiter: str, line: int = 0, column: int = 0,
-                     filename: Optional[str] = None) -> ParserError:
+def missing_delimiter(
+    delimiter: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> ParserError:
     """Create a missing delimiter error"""
-    return ParserError(E203, f"Missing closing delimiter: '{delimiter}'", line, column, filename)
+    return ParserError(
+        E203, f"Missing closing delimiter: '{delimiter}'", line, column, filename
+    )
 
 
-def undefined_variable(name: str, line: int = 0, column: int = 0,
-                      filename: Optional[str] = None) -> TypeCheckError:
+def undefined_variable(
+    name: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> TypeCheckError:
     """Create an undefined variable error"""
     return TypeCheckError(E302, f"Undefined variable: '{name}'", line, column, filename)
 
 
-def type_mismatch(expected: str, actual: str, line: int = 0, column: int = 0,
-                 filename: Optional[str] = None) -> TypeCheckError:
+def type_mismatch(
+    expected: str,
+    actual: str,
+    line: int = 0,
+    column: int = 0,
+    filename: Optional[str] = None,
+) -> TypeCheckError:
     """Create a type mismatch error"""
-    return TypeCheckError(E301, f"Type mismatch: expected '{expected}', found '{actual}'", 
-                         line, column, filename, expected_type=expected, actual_type=actual)
+    return TypeCheckError(
+        E301,
+        f"Type mismatch: expected '{expected}', found '{actual}'",
+        line,
+        column,
+        filename,
+        expected_type=expected,
+        actual_type=actual,
+    )
 
 
-def occurs_check(tvar: str, t: str, line: int = 0, column: int = 0,
-                filename: Optional[str] = None) -> TypeCheckError:
+def occurs_check(
+    tvar: str, t: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> TypeCheckError:
     """Create an occurs check error"""
-    return TypeCheckError(E305, f"Occurs check failed: {tvar} occurs in {t}", line, column, filename)
+    return TypeCheckError(
+        E305, f"Occurs check failed: {tvar} occurs in {t}", line, column, filename
+    )
 
 
-def division_by_zero(line: int = 0, column: int = 0, filename: Optional[str] = None) -> RuntimeError:
+def division_by_zero(
+    line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> RuntimeError:
     """Create a division by zero error"""
     return RuntimeError(E401, "Division by zero", line, column, filename)
 
 
-def index_out_of_bounds(index: int, length: int, line: int = 0, column: int = 0,
-                       filename: Optional[str] = None) -> RuntimeError:
+def index_out_of_bounds(
+    index: int,
+    length: int,
+    line: int = 0,
+    column: int = 0,
+    filename: Optional[str] = None,
+) -> RuntimeError:
     """Create an index out of bounds error"""
-    return RuntimeError(E402, f"Index {index} out of bounds for length {length}", line, column, filename)
+    return RuntimeError(
+        E402, f"Index {index} out of bounds for length {length}", line, column, filename
+    )
 
 
-def key_not_found(key: Any, line: int = 0, column: int = 0, filename: Optional[str] = None) -> RuntimeError:
+def key_not_found(
+    key: Any, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> RuntimeError:
     """Create a key not found error"""
     return RuntimeError(E403, f"Key not found: {key}", line, column, filename)
 
 
-def undefined_function(name: str, line: int = 0, column: int = 0,
-                      filename: Optional[str] = None) -> RuntimeError:
+def undefined_function(
+    name: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> RuntimeError:
     """Create an undefined function error"""
     return RuntimeError(E405, f"Undefined function: '{name}'", line, column, filename)
 
 
-def stack_overflow(line: int = 0, column: int = 0, filename: Optional[str] = None) -> RuntimeError:
+def stack_overflow(
+    line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> RuntimeError:
     """Create a stack overflow error"""
     return RuntimeError(E406, "Stack overflow", line, column, filename)
 
 
-def stack_underflow(line: int = 0, column: int = 0, filename: Optional[str] = None) -> RuntimeError:
+def stack_underflow(
+    line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> RuntimeError:
     """Create a stack underflow error"""
     return RuntimeError(E407, "Stack underflow", line, column, filename)
+
+
+def path_traversal_detected(
+    filepath: str, line: int = 0, column: int = 0, filename: Optional[str] = None
+) -> RuntimeError:
+    """Create a path traversal error"""
+    return RuntimeError(
+        E421, f"Path traversal detected: {filepath}", line, column, filename
+    )
 
 
 def get_error_description(code: str) -> str:

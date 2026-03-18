@@ -28,7 +28,14 @@ def _is_bytecode_function(obj):
 class StdlibError(Exception):
     """Standard library error"""
 
-    pass
+    def __init__(self, code: str, message: str = None):
+        if message is None:
+            # If only one argument provided, treat it as message with default code
+            message = code
+            code = "E408"
+        self.code = code
+        self.message = message
+        super().__init__(f"[{code}] {message}")
 
 
 # =============================================================================
@@ -142,7 +149,7 @@ def unwrap_func(result):
     """Unwrap Ok value or raise error"""
     if is_ok_func(result):
         return result.value
-    raise StdlibError(f"Cannot unwrap Err: {result}")
+    raise StdlibError("E408", f"Cannot unwrap Err: {result}")
 
 
 def unwrap_or_func(result, default):
@@ -283,39 +290,51 @@ def input_func(prompt: str = "") -> str:
 # =============================================================================
 
 
+def _validate_path(filepath: str) -> str:
+    """Validate file path to prevent path traversal attacks"""
+    safe_path = os.path.normpath(os.path.join(os.getcwd(), filepath))
+    if not safe_path.startswith(os.getcwd()):
+        raise StdlibError("E421", "Path traversal detected")
+    return safe_path
+
+
 def read_file_func(filepath: str) -> str:
     """read_file - Read entire file as string"""
+    safe_path = _validate_path(filepath)
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(safe_path, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        raise StdlibError(f"File not found: {filepath}")
+        raise StdlibError("E422", f"File not found: {filepath}")
     except Exception as e:
-        raise StdlibError(f"Error reading file: {e}")
+        raise StdlibError("E423", f"Error reading file: {e}")
 
 
 def write_file_func(filepath: str, content: str) -> None:
     """write_file - Write string to file"""
+    safe_path = _validate_path(filepath)
     try:
-        with open(filepath, "w", encoding="utf-8") as f:
+        with open(safe_path, "w", encoding="utf-8") as f:
             f.write(content)
     except Exception as e:
-        raise StdlibError(f"Error writing file: {e}")
+        raise StdlibError("E424", f"Error writing file: {e}")
 
 
 def file_exists_func(filepath: str) -> bool:
     """file_exists - Check if file exists"""
-    return os.path.exists(filepath)
+    safe_path = _validate_path(filepath)
+    return os.path.exists(safe_path)
 
 
 def delete_file_func(filepath: str) -> None:
     """delete_file - Delete a file"""
+    safe_path = _validate_path(filepath)
     try:
-        os.remove(filepath)
+        os.remove(safe_path)
     except FileNotFoundError:
-        raise StdlibError(f"File not found: {filepath}")
+        raise StdlibError("E425", f"File not found: {filepath}")
     except Exception as e:
-        raise StdlibError(f"Error deleting file: {e}")
+        raise StdlibError("E426", f"Error deleting file: {e}")
 
 
 # =============================================================================

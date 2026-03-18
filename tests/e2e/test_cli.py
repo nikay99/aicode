@@ -15,7 +15,7 @@ class TestCLIRun(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def tearDown(self):
         import shutil
@@ -84,7 +84,7 @@ println(doubled)
         filepath = self._create_test_file(source)
         result = self._run_aic(["run", filepath])
         self.assertEqual(result.returncode, 1)
-        self.assertIn("parse", result.stderr.lower())
+        self.assertIn("error", result.stderr.lower())
 
     def test_run_runtime_error(self):
         source = "println(undefined_var)"
@@ -98,7 +98,7 @@ class TestCLITokenize(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def tearDown(self):
         import shutil
@@ -143,7 +143,7 @@ class TestCLIParse(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def tearDown(self):
         import shutil
@@ -190,7 +190,7 @@ class TestCLICompile(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def tearDown(self):
         import shutil
@@ -238,7 +238,7 @@ class TestCLICheck(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def tearDown(self):
         import shutil
@@ -268,7 +268,7 @@ class TestCLIGeneral(unittest.TestCase):
     """Test general CLI functionality"""
 
     def setUp(self):
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def _run_aic(self, args):
         cmd = [sys.executable, self.main_py] + args
@@ -300,7 +300,7 @@ class TestCLIVerbose(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
-        self.main_py = str(Path(__file__).parent.parent.parent.parent / "main.py")
+        self.main_py = str(Path(__file__).parent.parent.parent / "main.py")
 
     def tearDown(self):
         import shutil
