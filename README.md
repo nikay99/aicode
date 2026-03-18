@@ -135,20 +135,37 @@ python3 test_parser_ai.py
 
 ### Current Status
 
-**Lexer**: ✅ Complete  
-**Parser**: ✅ Complete  
-**Type Checker**: 🚧 In Progress  
-**Compiler**: 🚧 In Progress  
-**VM**: 🚧 In Progress  
+| Component | Status |
+|-----------|--------|
+| Lexer (ASCII + Unicode) | ✅ Complete |
+| Parser (ASCII + Unicode) | ✅ Complete |
+| Bytecode Compiler | ✅ Complete |
+| Stack-based VM | ✅ Complete |
+| Interpreter | ✅ Complete |
+| Type Checker | 🚧 Not integrated |
+| Standard Library | 🚧 Basic builtins |
+
+**All 26 tests passing** as of 2026-03-18.
+
+### Running Tests
+
+```bash
+# Run all tests
+python3 -m pytest tests/test_aicode.py -v
+
+# Run specific test
+python3 -m pytest tests/test_aicode.py::TestFizzBuzz -v
+```
 
 ### Running Examples
 
 ```bash
-# Test lexer
-python3 test_lexer_ai.py
+# CLI (if installed)
+python3 main.py run examples/hello.aic
+python3 main.py run examples/fizzbuzz.aic
 
-# Test parser
-python3 test_parser_ai.py
+# REPL
+python3 main.py repl
 
 # See available examples
 ls examples/
@@ -169,24 +186,30 @@ ls examples/
 - [x] Recursive descent parser
 - [x] Compact AST
 
-### Phase 2: Type System (🚧 In Progress)
+### Phase 2: Compilation (✅ Completed)
+- [x] Bytecode compiler
+- [x] Lambda compilation
+- [x] Match expression patterns
+- [x] For/While loops
+- [x] If expressions
+
+### Phase 3: VM (✅ Completed)
+- [x] Stack-based VM
+- [x] Function calls & frames
+- [x] Built-in functions (map, filter, reduce, etc.)
+- [x] Iterator protocol (ITER/ITER_NEXT)
+- [x] Result type (Ok/Err/unwrap)
+
+### Phase 4: Type System (🚧 In Progress)
 - [ ] Hindley-Milner type inference
 - [ ] Polymorphic type schemes
 - [ ] Type unification
-
-### Phase 3: Compilation (⏳ Planned)
-- [ ] Bytecode compiler
-- [ ] Constant folding
-- [ ] Tail call optimization
-
-### Phase 4: VM (⏳ Planned)
-- [ ] Stack-based VM
-- [ ] Garbage collection
-- [ ] Built-in functions
+- [ ] Integration into pipeline
 
 ### Phase 5: Ecosystem (⏳ Future)
+- [ ] Standard library expansion
+- [ ] Module/import system
 - [ ] LLM fine-tuning dataset
-- [ ] Prompt templates
 - [ ] VS Code extension
 - [ ] Package manager
 
@@ -195,10 +218,26 @@ ls examples/
 We need contributors! See [TODO.md](TODO.md) for tasks.
 
 **Priority Areas:**
-- Type checker implementation
-- Bytecode compiler
-- VM execution
+- Type checker integration
+- Standard library expansion
+- Module/import system
+- Error handling improvements
 - LLM training data generation
+
+## 🧪 Built-in Functions
+
+| Function | Description |
+|----------|-------------|
+| `print`, `println` | Output |
+| `range(start, end, step)` | Generate list |
+| `map(list, fn)` | Transform list |
+| `filter(list, pred)` | Filter list |
+| `reduce(list, fn, init)` | Fold list |
+| `length`, `str`, `int`, `float` | Type operations |
+| `keys`, `values` | Dict operations |
+| `Ok`, `Err` | Result type constructors |
+| `is_ok`, `is_err` | Result type checks |
+| `unwrap`, `unwrap_or` | Result type extraction |
 
 ## 📄 License
 
@@ -212,5 +251,6 @@ MIT License - See [LICENSE](LICENSE)
 
 ---
 
-**Status**: 🚧 Active Development | **Version**: 0.1.0-alpha  
+**Status**: ✅ Active Development | **Version**: 0.2.0  
+**Tests**: 26/26 passing  
 **Made for AI, by AI enthusiasts** 🤖
