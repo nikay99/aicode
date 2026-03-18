@@ -76,6 +76,7 @@ class TokenType(Enum):
     # Separators
     COMMA = auto()  # ,
     DOT = auto()  # .
+    SEMICOLON = auto()  # ;
 
     # Brackets
     LPAREN = auto()  # ( (U+0028)
@@ -157,6 +158,7 @@ UNICODE_TOKENS = {
     "\u2218": TokenType.COMPOSE,  # ∘
     # Separators
     ",": TokenType.COMMA,
+    ".": TokenType.DOT,
     # Brackets
     "(": TokenType.LPAREN,
     ")": TokenType.RPAREN,

@@ -44,7 +44,13 @@ class LocalScope:
 class FunctionCompiler:
     """Compiles a single function"""
 
-    def __init__(self, name: str, arity: int, global_names: Optional[List[str]] = None, module: Optional["BytecodeModule"] = None):
+    def __init__(
+        self,
+        name: str,
+        arity: int,
+        global_names: Optional[List[str]] = None,
+        module: Optional["BytecodeModule"] = None,
+    ):
         self.name = name
         self.arity = arity
         self.builder = BytecodeBuilder()
@@ -81,23 +87,22 @@ class FunctionCompiler:
             if idx is not None:
                 self.builder.emit(OpCode.LOAD_LOCAL, idx)
             else:
-                # Global variable - find index in global names
+                # Global variable - must already be declared
                 if expr.name in self.global_names:
                     global_idx = self.global_names.index(expr.name)
                     self.builder.emit(OpCode.LOAD_GLOBAL, global_idx)
                 else:
-                    raise CompilerError("E302", f"Undefined variable: '{expr.name}'")
+                    raise CompilerError(f"Undefined variable: {expr.name}")
 
         elif isinstance(expr, ast.ListExpr):
-            # Compile elements - BUILD_LIST will reverse them
+            # Compile elements in reverse order
             for elem in expr.elements:
                 self.compile_expr(elem)
             self.builder.emit(OpCode.BUILD_LIST, len(expr.elements))
 
         elif isinstance(expr, ast.DictExpr):
-            # Compile key-value pairs
-            # BUILD_DICT pops value then key, so push key first, then value
-            for entry in reversed(expr.entries):
+            # Compile key-value pairs: push key then value (VM pops value then key)
+            for entry in expr.entries:
                 if isinstance(entry.key, str):
                     self.builder.emit_load_const(entry.key)
                 else:
@@ -125,6 +130,13 @@ class FunctionCompiler:
                 "||": OpCode.OR,
                 "and": OpCode.AND,
                 "or": OpCode.OR,
+                # Unicode operators (parser_ai.py)
+                "=": OpCode.EQ,
+                "≠": OpCode.NE,
+                "≤": OpCode.LE,
+                "≥": OpCode.GE,
+                "∧": OpCode.AND,
+                "∨": OpCode.OR,
             }
 
             if expr.op in opcodes:
@@ -137,17 +149,16 @@ class FunctionCompiler:
 
             if expr.op == "-":
                 self.builder.emit(OpCode.NEG)
-            elif expr.op in ("!", "not"):
+            elif expr.op in ("!", "not", "¬"):
                 self.builder.emit(OpCode.NOT)
             else:
                 raise CompilerError("E309", f"Unknown unary operator: {expr.op}")
 
         elif isinstance(expr, ast.CallExpr):
-            # Compile arguments
+            # Compile function first, then arguments
+            self.compile_expr(expr.func)
             for arg in expr.args:
                 self.compile_expr(arg)
-            # Compile function
-            self.compile_expr(expr.func)
             self.builder.emit(OpCode.CALL, len(expr.args))
 
         elif isinstance(expr, ast.FieldAccess):
@@ -166,7 +177,7 @@ class FunctionCompiler:
 
             # Condition
             self.compile_expr(expr.condition)
-            
+
             if expr.else_branch:
                 # Has else branch - jump to else if condition is false
                 self.builder.emit_jump(OpCode.JUMP_IF_FALSE, else_label)
@@ -174,11 +185,10 @@ class FunctionCompiler:
                 # No else branch - jump to end if condition is false
                 self.builder.emit_jump(OpCode.JUMP_IF_FALSE, end_label)
 
-            # Then branch
+            # Then branch — compile stmts, push NULL so IfExpr has a value
             for stmt in expr.then_branch:
                 self.compile_stmt(stmt)
-            
-            # Jump to end after then_branch to skip else (if any)
+            self.builder.emit(OpCode.PUSH_NULL)
             self.builder.emit_jump(OpCode.JUMP, end_label)
 
             # Else branch
@@ -189,17 +199,22 @@ class FunctionCompiler:
                 else:
                     for stmt in expr.else_branch:
                         self.compile_stmt(stmt)
+                    self.builder.emit(OpCode.PUSH_NULL)
+            else:
+                self.builder.emit(OpCode.PUSH_NULL)
 
             self.builder.label(end_label)
 
         elif isinstance(expr, ast.LambdaExpr):
             # Compile lambda as anonymous function
-            lambda_compiler = FunctionCompiler("<lambda>", len(expr.params), self.global_names, self.module)
+            lambda_compiler = FunctionCompiler(
+                "<lambda>", len(expr.params), self.global_names, self.module
+            )
 
-            # Define parameters
+            # Define parameters (params may be Param objects or plain strings)
             for param in expr.params:
-                lambda_compiler.scope.define(param.name)
-                lambda_compiler.builder.get_local(param.name)
+                param_name = param.name if hasattr(param, "name") else str(param)
+                lambda_compiler.scope.define(param_name)
 
             # Compile body - could be expression or list of statements
             if isinstance(expr.body, list):
@@ -210,47 +225,76 @@ class FunctionCompiler:
                 lambda_compiler.compile_expr(expr.body)
                 lambda_compiler.builder.emit(OpCode.RETURN_VALUE)
 
-            # Build the function and add to module
-            func = lambda_compiler.builder.build("<lambda>", len(expr.params))
-            func_idx = self.module.add_function(func)
-            
-            # Push function reference onto stack
-            # We need to load the function from module.functions
-            # Since we can't directly push a function object, we'll use a special approach
-            # Store function in a global slot temporarily
-            temp_global_name = f"__lambda_{func_idx}__"
-            if temp_global_name not in self.module.globals:
-                self.module.globals.append(temp_global_name)
-            global_idx = self.module.globals.index(temp_global_name)
-            self.builder.emit(OpCode.LOAD_GLOBAL, global_idx)
+            # Build the lambda BytecodeFunction and push it as a constant
+            lam_locals = lambda_compiler.scope.offset + len(
+                lambda_compiler.scope.variables
+            )
+            lam_func = lambda_compiler.builder.build(
+                "<lambda>", len(expr.params), lam_locals
+            )
+            # Store as a constant in the current function's constant pool
+            self.builder.emit_load_const(lam_func)
 
         elif isinstance(expr, ast.MatchExpr):
+            # Compile match expression — subject on stack
+            self.compile_expr(expr.expr)
+
             end_label = self.new_label()
-            next_labels = []
 
-            for i, arm in enumerate(expr.arms):
+            for arm in expr.arms:
                 next_label = self.new_label()
-                next_labels.append(next_label)
+                pattern = arm.pattern
 
-                if isinstance(arm.pattern, ast.LiteralPattern):
-                    self.compile_expr(expr.expr)
-                    self.compile_expr(arm.pattern.value)
+                if isinstance(pattern, ast.WildcardPattern):
+                    # Wildcard always matches — pop subject, compile body
+                    self.builder.emit(OpCode.POP)
+                    self.compile_expr(arm.body)
+                    self.builder.emit_jump(OpCode.JUMP, end_label)
+                    self.builder.label(next_label)
+
+                elif isinstance(pattern, ast.LiteralPattern):
+                    # DUP subject, push literal, compare
+                    self.builder.emit(OpCode.DUP)
+                    self.compile_expr(pattern.value)
                     self.builder.emit(OpCode.EQ)
                     self.builder.emit_jump(OpCode.JUMP_IF_FALSE, next_label)
-                elif isinstance(arm.pattern, ast.WildcardPattern):
-                    pass
+                    # Match — pop subject, compile body
+                    self.builder.emit(OpCode.POP)
+                    self.compile_expr(arm.body)
+                    self.builder.emit_jump(OpCode.JUMP, end_label)
+                    self.builder.label(next_label)
+
+                elif isinstance(pattern, ast.IdentifierPattern):
+                    if pattern.name == "_":
+                        # Wildcard
+                        self.builder.emit(OpCode.POP)
+                        self.compile_expr(arm.body)
+                        self.builder.emit_jump(OpCode.JUMP, end_label)
+                        self.builder.label(next_label)
+                    else:
+                        # Bind variable — store subject in local, pop original, compile body
+                        idx = self.scope.define(pattern.name)
+                        self.builder.emit(OpCode.STORE_LOCAL, idx)
+                        self.compile_expr(arm.body)
+                        self.builder.emit_jump(OpCode.JUMP, end_label)
+                        self.builder.label(next_label)
+
                 else:
-                    pass
+                    # Fallback: wildcard behaviour
+                    self.builder.emit(OpCode.POP)
+                    self.compile_expr(arm.body)
+                    self.builder.emit_jump(OpCode.JUMP, end_label)
+                    self.builder.label(next_label)
 
-                self.compile_expr(arm.body)
-                self.builder.emit_jump(OpCode.JUMP, end_label)
-
-                self.builder.label(next_label)
-
+            # If no arm matched, pop subject and push null
+            self.builder.emit(OpCode.POP)
+            self.builder.emit(OpCode.PUSH_NULL)
             self.builder.label(end_label)
 
         else:
-            raise CompilerError("E204", f"Unsupported expression: {type(expr).__name__}")
+            raise CompilerError(
+                "E204", f"Unsupported expression: {type(expr).__name__}"
+            )
 
     def compile_stmt(self, stmt: ast.Stmt):
         """Compile a statement"""
@@ -260,7 +304,6 @@ class FunctionCompiler:
             idx = self.scope.define(stmt.name)
             self.builder.get_local(stmt.name)  # Sync with builder
             self.builder.emit(OpCode.STORE_LOCAL, idx)
-            self.builder.emit(OpCode.POP)  # Pop the value
 
         elif isinstance(stmt, ast.ConstStmt):
             # Const is similar to Let but immutable
@@ -268,7 +311,6 @@ class FunctionCompiler:
             idx = self.scope.define(stmt.name)
             self.builder.get_local(stmt.name)
             self.builder.emit(OpCode.STORE_LOCAL, idx)
-            self.builder.emit(OpCode.POP)
 
         elif isinstance(stmt, ast.AssignStmt):
             self.compile_expr(stmt.value)
@@ -283,7 +325,6 @@ class FunctionCompiler:
                     self.global_names.append(stmt.name)
                     global_idx = len(self.global_names) - 1
                 self.builder.emit(OpCode.STORE_GLOBAL, global_idx)
-            self.builder.emit(OpCode.POP)
 
         elif isinstance(stmt, ast.ExprStmt):
             self.compile_expr(stmt.expr)
@@ -303,7 +344,7 @@ class FunctionCompiler:
             start_label = self.new_label()
             end_label = self.new_label()
 
-            # Create iterator
+            # Create iterator (leaves iterator on stack)
             self.compile_expr(stmt.iterable)
             self.builder.emit(OpCode.ITER)
 
@@ -312,17 +353,20 @@ class FunctionCompiler:
 
             self.builder.label(start_label)
 
-            # Get next item or exit
+            # ITER_NEXT: peek iterator, push next item or jump to end
+            # Stack after successful ITER_NEXT: [..., iterator, item]
             self.builder.emit_jump(OpCode.ITER_NEXT, end_label)
             self.builder.emit(OpCode.STORE_LOCAL, var_idx)
-            self.builder.emit(OpCode.POP)
+            # STORE_LOCAL consumed the item; iterator still on stack
 
             # Body
             for s in stmt.body:
                 self.compile_stmt(s)
 
             self.builder.emit_jump(OpCode.JUMP, start_label)
+            # End: iterator is exhausted and still on stack — pop it
             self.builder.label(end_label)
+            self.builder.emit(OpCode.POP)
 
         elif isinstance(stmt, ast.WhileStmt):
             start_label = self.new_label()
@@ -343,7 +387,9 @@ class FunctionCompiler:
 
         elif isinstance(stmt, ast.FnStmt):
             # Nested function - compile separately
-            func_compiler = FunctionCompiler(stmt.name, len(stmt.params), self.global_names, self.module)
+            func_compiler = FunctionCompiler(
+                stmt.name, len(stmt.params), self.global_names, self.module
+            )
 
             for param in stmt.params:
                 func_compiler.scope.define(param.name)
@@ -372,7 +418,8 @@ class FunctionCompiler:
             self.builder.emit(OpCode.PUSH_NULL)
             self.builder.emit(OpCode.RETURN_VALUE)
 
-        return self.builder.build(self.name, self.arity)
+        locals_count = self.scope.offset + len(self.scope.variables)
+        return self.builder.build(self.name, self.arity, locals_count)
 
 
 class BytecodeCompiler:
@@ -382,7 +429,9 @@ class BytecodeCompiler:
         self.module = BytecodeModule()
         self.global_vars: set = set()
 
-    def compile_program(self, program: ast.Program) -> BytecodeModule:
+    def compile_program(
+        self, program: ast.Program, extra_globals: Optional[List[str]] = None
+    ) -> BytecodeModule:
         """Compile a full program to bytecode"""
         # Collect all global variables and functions
         for stmt in program.statements:
@@ -414,7 +463,10 @@ class BytecodeCompiler:
             "unwrap",
             "unwrap_or",
         ]
-        self.module.globals = builtins + list(self.global_vars)
+
+        # Add extra globals (e.g., imported modules)
+        extra = extra_globals or []
+        self.module.globals = builtins + list(self.global_vars) + extra
 
         # Compile functions
         for stmt in program.statements:
@@ -422,7 +474,9 @@ class BytecodeCompiler:
                 self._compile_function(stmt)
 
         # Compile main function (top-level code)
-        main_compiler = FunctionCompiler("__main__", 0, self.module.globals, self.module)
+        main_compiler = FunctionCompiler(
+            "__main__", 0, self.module.globals, self.module
+        )
 
         for stmt in program.statements:
             if not isinstance(stmt, ast.FnStmt):
@@ -432,14 +486,17 @@ class BytecodeCompiler:
         main_compiler.builder.emit(OpCode.HALT)
 
         # Build the function (no more compilation, just finalize)
-        main_func = main_compiler.builder.build("__main__", 0)
+        main_locals = main_compiler.scope.offset + len(main_compiler.scope.variables)
+        main_func = main_compiler.builder.build("__main__", 0, main_locals)
         self.module.entry_point = self.module.add_function(main_func)
 
         return self.module
 
     def _compile_function(self, stmt: ast.FnStmt):
         """Compile a function definition"""
-        compiler = FunctionCompiler(stmt.name, len(stmt.params), self.module.globals, self.module)
+        compiler = FunctionCompiler(
+            stmt.name, len(stmt.params), self.module.globals, self.module
+        )
 
         for param in stmt.params:
             compiler.scope.define(param.name)
@@ -456,5 +513,6 @@ class BytecodeCompiler:
             compiler.builder.emit(OpCode.PUSH_NULL)
             compiler.builder.emit(OpCode.RETURN_VALUE)
 
-        func = compiler.builder.build(stmt.name, len(stmt.params))
+        func_locals = compiler.scope.offset + len(compiler.scope.variables)
+        func = compiler.builder.build(stmt.name, len(stmt.params), func_locals)
         self.module.add_function(func)

@@ -1,0 +1,123 @@
+# String utilities for AICode
+# Provides string manipulation functions
+
+fn reverse(s)
+  let result = ""
+  let i = length(s) - 1
+  while i >= 0
+    result = result + s[i]
+    i = i - 1
+  return result
+
+fn uppercase(s)
+  # Simple uppercase conversion for ASCII letters
+  let result = ""
+  for c in s
+    if c >= "a" && c <= "z"
+      result = result + chr(ord(c) - 32)
+    else
+      result = result + c
+  return result
+
+fn lowercase(s)
+  # Simple lowercase conversion for ASCII letters
+  let result = ""
+  for c in s
+    if c >= "A" && c <= "Z"
+      result = result + chr(ord(c) + 32)
+    else
+      result = result + c
+  return result
+
+fn contains(s, substr)
+  let s_len = length(s)
+  let sub_len = length(substr)
+  if sub_len == 0
+    return true
+  if sub_len > s_len
+    return false
+  
+  let i = 0
+  while i <= s_len - sub_len
+    let j = 0
+    let match = true
+    while j < sub_len
+      if s[i + j] != substr[j]
+        match = false
+        break
+      j = j + 1
+    if match
+      return true
+    i = i + 1
+  return false
+
+fn starts_with(s, prefix)
+  let pre_len = length(prefix)
+  if pre_len > length(s)
+    return false
+  let i = 0
+  while i < pre_len
+    if s[i] != prefix[i]
+      return false
+    i = i + 1
+  return true
+
+fn ends_with(s, suffix)
+  let suf_len = length(suffix)
+  let s_len = length(s)
+  if suf_len > s_len
+    return false
+  let i = 0
+  while i < suf_len
+    if s[s_len - suf_len + i] != suffix[i]
+      return false
+    i = i + 1
+  return true
+
+fn trim(s)
+  let start = 0
+  let end = length(s) - 1
+  while start <= end && (s[start] == " " || s[start] == "\t" || s[start] == "\n")
+    start = start + 1
+  while end >= start && (s[end] == " " || s[end] == "\t" || s[end] == "\n")
+    end = end - 1
+  if start > end
+    return ""
+  return substring(s, start, end + 1)
+
+fn split(s, delimiter)
+  let result = []
+  let current = ""
+  let del_len = length(delimiter)
+  let i = 0
+  while i < length(s)
+    if i + del_len <= length(s)
+      let match = true
+      let j = 0
+      while j < del_len
+        if s[i + j] != delimiter[j]
+          match = false
+          break
+        j = j + 1
+      if match
+        result = result + [current]
+        current = ""
+        i = i + del_len
+      else
+        current = current + s[i]
+        i = i + 1
+    else
+      current = current + s[i]
+      i = i + 1
+  result = result + [current]
+  return result
+
+fn join(strings, delimiter)
+  let result = ""
+  let i = 0
+  while i < length(strings)
+    if i > 0
+      result = result + delimiter
+    result = result + strings[i]
+    i = i + 1
+  return result
