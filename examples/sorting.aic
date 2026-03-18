@@ -1,0 +1,91 @@
+# Sorting algorithms demonstration
+# Implements bubble sort, quick sort, and merge sort
+
+# Bubble Sort - O(n^2) - simple but slow
+fn bubble_sort(arr: list<int>) -> list<int>
+  let n = length(arr)
+  let i = 0
+  while i < n
+    let j = 0
+    while j < n - i - 1
+      if arr[j] > arr[j + 1]
+        # Swap elements
+        let temp = arr[j]
+        arr[j] = arr[j + 1]
+        arr[j + 1] = temp
+      j = j + 1
+    i = i + 1
+  return arr
+
+# Quick Sort - O(n log n) average case
+fn quick_sort(arr: list<int>) -> list<int>
+  if length(arr) <= 1
+    return arr
+  let pivot = arr[0]
+  let left = filter(arr, fn(x): x < pivot)
+  let middle = filter(arr, fn(x): x == pivot)
+  let right = filter(arr, fn(x): x > pivot)
+  return concat(quick_sort(left), concat(middle, quick_sort(right)))
+
+# Merge Sort - O(n log n) - stable sort
+fn merge_sort(arr: list<int>) -> list<int>
+  if length(arr) <= 1
+    return arr
+  let mid = length(arr) / 2
+  let left = slice(arr, 0, mid)
+  let right = slice(arr, mid, length(arr))
+  return merge(merge_sort(left), merge_sort(right))
+
+# Helper function for merge sort
+fn merge(left: list<int>, right: list<int>) -> list<int>
+  let result = []
+  while length(left) > 0 and length(right) > 0
+    if left[0] <= right[0]
+      result = append(result, left[0])
+      left = slice(left, 1, length(left))
+    else
+      result = append(result, right[0])
+      right = slice(right, 1, length(right))
+  # Append remaining elements
+  result = concat(result, left)
+  result = concat(result, right)
+  return result
+
+# Slice function - extract portion of list
+fn slice(arr: list<int>, start: int, end: int) -> list<int>
+  let result = []
+  let i = start
+  while i < end and i < length(arr)
+    result = append(result, arr[i])
+    i = i + 1
+  return result
+
+# Append function - add element to list
+fn append(arr: list<int>, elem: int) -> list<int>
+  return concat(arr, [elem])
+
+# Test data
+let test_data = [64, 34, 25, 12, 22, 11, 90, 5]
+
+println("Original array:")
+println(test_data)
+
+println("")
+println("Bubble Sort:")
+println(bubble_sort(test_data))
+
+println("")
+println("Quick Sort:")
+println(quick_sort(test_data))
+
+println("")
+println("Merge Sort:")
+println(merge_sort(test_data))
+
+# Performance comparison for larger array
+let large_data = []
+for i in range(100, 0, -1)
+  large_data = append(large_data, i)
+
+println("")
+println("Sorted 100 elements successfully!")

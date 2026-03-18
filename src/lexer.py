@@ -5,6 +5,7 @@ AICode Lexer - Tokenisiert den Sourcecode
 from enum import Enum, auto
 from dataclasses import dataclass
 from typing import List, Optional, Iterator, Any
+from .errors import LexerError, invalid_character, unterminated_string, invalid_indentation, invalid_escape_sequence
 
 
 class TokenType(Enum):
@@ -142,8 +143,8 @@ class Lexer:
         self.tokens: List[Token] = []
         self.indent_stack = [0]  # Stack für Indent-Levels
 
-    def error(self, msg: str):
-        raise SyntaxError(f"{msg} at line {self.line}, column {self.column}")
+    def error(self, msg: str, code: str = "E101"):
+        raise LexerError(code, msg, self.line, self.column)
 
     def peek(self, offset: int = 0) -> str:
         pos = self.pos + offset
@@ -196,7 +197,7 @@ class Lexer:
                 result.append(char)
 
         if self.peek() != '"':
-            self.error("Unterminated string")
+            raise unterminated_string(self.line, self.column)
 
         self.advance()  # Schließende "
         return "".join(result)
@@ -281,7 +282,7 @@ class Lexer:
                     )
                 )
             if indent != self.indent_stack[-1]:
-                self.error("Invalid dedent")
+                raise invalid_indentation(self.line, self.column)
 
         return tokens
 
@@ -397,7 +398,7 @@ class Lexer:
                 continue
 
             # Unbekanntes Zeichen
-            self.error(f"Unexpected character: '{char}'")
+            raise invalid_character(char, self.line, self.column)
 
         return self.tokens
 

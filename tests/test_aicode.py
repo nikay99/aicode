@@ -15,7 +15,7 @@ import src.interpreter as interpreter
 tokenize = lexer.tokenize
 TokenType = lexer.TokenType
 parse = parser.parse
-ParseError = parser.ParseError
+from src.errors import ParserError as ParseError
 interpret = interpreter.interpret
 Interpreter = interpreter.Interpreter
 AICodeError = interpreter.AICodeError

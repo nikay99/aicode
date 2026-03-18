@@ -1,2 +1,37 @@
-# Simple test
-println("Hello, AICode!")
+# Hello World - AICode programming language
+# This is the simplest example demonstrating basic syntax
+
+# Print a simple greeting
+println("Hello, World!")
+
+# Variable declarations
+let greeting = "Hello"
+let target = "AICode"
+
+# String concatenation
+let message = greeting + ", " + target + "!"
+println(message)
+
+# Constants
+const PI = 3.14159
+const GREETING = "Welcome"
+
+println("")
+println("Constants:")
+println(GREETING)
+println(PI)
+
+# Multiple print statements
+println("")
+println("AICode is:")
+println("- Concise")
+println("- Type-safe")
+println("- Functional")
+
+# Simple arithmetic
+println("")
+println("Simple math:")
+println(2 + 2)
+println(10 - 3)
+println(4 * 5)
+println(20 / 4)

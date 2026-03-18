@@ -1,0 +1,138 @@
+# Type system demonstration
+# Shows various type annotations and type checking
+
+# Basic type annotations
+let integer: int = 42
+let floating: float = 3.14
+let text: str = "Hello"
+let flag: bool = true
+
+println("Basic types:")
+println(integer)
+println(floating)
+println(text)
+println(flag)
+
+# Function with type annotations
+fn add(a: int, b: int) -> int
+  return a + b
+
+fn greet(name: str) -> str
+  return "Hello, " + name
+
+fn is_even(n: int) -> bool
+  return n % 2 == 0
+
+fn divide(a: float, b: float) -> float
+  return a / b
+
+println("")
+println("Type-annotated functions:")
+println(add(10, 20))
+println(greet("AICode"))
+println(is_even(42))
+println(divide(10.0, 3.0))
+
+# Generic list type
+let numbers: list<int> = [1, 2, 3, 4, 5]
+let strings: list<str> = ["a", "b", "c"]
+let floats: list<float> = [1.1, 2.2, 3.3]
+
+println("")
+println("List types:")
+println(numbers)
+println(strings)
+println(floats)
+
+# Generic dict type
+let scores: dict<str, int> = {"Alice": 95, "Bob": 87, "Charlie": 92}
+let config: dict<str, str> = {"host": "localhost", "port": "8080"}
+
+println("")
+println("Dict types:")
+println(scores)
+println(config)
+
+# Function types
+let binary_op: fn(int, int) -> int = fn(a, b): a + b
+let unary_op: fn(int) -> int = fn(x): x * x
+let predicate: fn(int) -> bool = fn(n): n > 0
+
+println("")
+println("Function types:")
+println(binary_op(5, 3))
+println(unary_op(4))
+println(predicate(-5))
+
+# Higher-order functions with type annotations
+fn map_ints(items: list<int>, f: fn(int) -> int) -> list<int>
+  let result: list<int> = []
+  for item in items
+    result = append(result, f(item))
+  return result
+
+fn filter_ints(items: list<int>, p: fn(int) -> bool) -> list<int>
+  let result: list<int> = []
+  for item in items
+    if p(item)
+      result = append(result, item)
+  return result
+
+println("")
+println("Higher-order typed functions:")
+let doubled = map_ints([1, 2, 3, 4], fn(x): x * 2)
+println(doubled)
+
+let positives = filter_ints([-2, -1, 0, 1, 2], fn(x): x > 0)
+println(positives)
+
+# Struct-like usage with dicts
+let person: dict<str, any> = {
+  "name": "Alice",
+  "age": 30,
+  "is_student": false
+}
+
+println("")
+println("Struct-like dict:")
+println(person.name)
+println(person.age)
+
+# Mutable variables with types
+let mut counter: int = 0
+while counter < 5
+  counter = counter + 1
+
+println("")
+println("Mutable counter:")
+println(counter)
+
+# Type inference examples (types are inferred even without annotations)
+let inferred_int = 42
+let inferred_str = "inferred"
+let inferred_list = [1, 2, 3]
+
+println("")
+println("Inferred types:")
+println(inferred_int)
+println(inferred_str)
+println(inferred_list)
+
+# Error handling types (Result pattern)
+fn safe_divide(a: int, b: int) -> dict<str, any>
+  if b == 0
+    return {"Ok": null, "Err": "Division by zero"}
+  else
+    return {"Ok": a / b, "Err": null}
+
+let result1 = safe_divide(10, 2)
+let result2 = safe_divide(10, 0)
+
+println("")
+println("Result types:")
+println(result1)
+println(result2)
+
+# Helper function
+fn append(arr: list<int>, elem: int) -> list<int>
+  return concat(arr, [elem])
