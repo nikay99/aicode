@@ -3,6 +3,8 @@ AICode v2.0 Standard Library
 Unicode mathematical symbol implementations
 """
 
+import json
+import os
 from typing import Any, List, Callable, Optional, Union
 from functools import reduce as py_reduce
 
@@ -72,6 +74,31 @@ def not_contains_func(item: Any, lst: List[Any]) -> bool:
     return item not in lst
 
 
+def reverse_func(lst: List[Any]) -> List[Any]:
+    """∋ (contains) - Reverse a list"""
+    if not isinstance(lst, list):
+        raise StdlibError(f"∋ expects a list, got {type(lst)}")
+    return lst[::-1]
+
+
+def concat_func(lst1: List[Any], lst2: List[Any]) -> List[Any]:
+    """⊕ (oplus) - Concatenate two lists"""
+    if not isinstance(lst1, list):
+        raise StdlibError(f"⊕ first argument must be a list, got {type(lst1)}")
+    if not isinstance(lst2, list):
+        raise StdlibError(f"⊕ second argument must be a list, got {type(lst2)}")
+    return lst1 + lst2
+
+
+def zip_func(lst1: List[Any], lst2: List[Any]) -> List[tuple]:
+    """⊗ (otimes) - Zip two lists together"""
+    if not isinstance(lst1, list):
+        raise StdlibError(f"⊗ first argument must be a list, got {type(lst1)}")
+    if not isinstance(lst2, list):
+        raise StdlibError(f"⊗ second argument must be a list, got {type(lst2)}")
+    return list(zip(lst1, lst2))
+
+
 # =============================================================================
 # Result Type for Error Handling
 # =============================================================================
@@ -123,31 +150,6 @@ def unwrap_or_func(result, default):
     if is_ok_func(result):
         return result.value
     return default
-
-
-def reverse_func(lst: List[Any]) -> List[Any]:
-    """∋ (contains) - Reverse a list"""
-    if not isinstance(lst, list):
-        raise StdlibError(f"∋ expects a list, got {type(lst)}")
-    return lst[::-1]
-
-
-def concat_func(lst1: List[Any], lst2: List[Any]) -> List[Any]:
-    """⊕ (oplus) - Concatenate two lists"""
-    if not isinstance(lst1, list):
-        raise StdlibError(f"⊕ first argument must be a list, got {type(lst1)}")
-    if not isinstance(lst2, list):
-        raise StdlibError(f"⊕ second argument must be a list, got {type(lst2)}")
-    return lst1 + lst2
-
-
-def zip_func(lst1: List[Any], lst2: List[Any]) -> List[tuple]:
-    """⊗ (otimes) - Zip two lists together"""
-    if not isinstance(lst1, list):
-        raise StdlibError(f"⊗ first argument must be a list, got {type(lst1)}")
-    if not isinstance(lst2, list):
-        raise StdlibError(f"⊗ second argument must be a list, got {type(lst2)}")
-    return list(zip(lst1, lst2))
 
 
 # =============================================================================
@@ -277,6 +279,69 @@ def input_func(prompt: str = "") -> str:
 
 
 # =============================================================================
+# File Operations
+# =============================================================================
+
+
+def read_file_func(filepath: str) -> str:
+    """read_file - Read entire file as string"""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        raise StdlibError(f"File not found: {filepath}")
+    except Exception as e:
+        raise StdlibError(f"Error reading file: {e}")
+
+
+def write_file_func(filepath: str, content: str) -> None:
+    """write_file - Write string to file"""
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
+    except Exception as e:
+        raise StdlibError(f"Error writing file: {e}")
+
+
+def file_exists_func(filepath: str) -> bool:
+    """file_exists - Check if file exists"""
+    return os.path.exists(filepath)
+
+
+def delete_file_func(filepath: str) -> None:
+    """delete_file - Delete a file"""
+    try:
+        os.remove(filepath)
+    except FileNotFoundError:
+        raise StdlibError(f"File not found: {filepath}")
+    except Exception as e:
+        raise StdlibError(f"Error deleting file: {e}")
+
+
+# =============================================================================
+# JSON Operations
+# =============================================================================
+
+
+def json_parse_func(json_str: str) -> Any:
+    """json_parse - Parse JSON string to AICode values"""
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise StdlibError(f"Invalid JSON: {e}")
+
+
+def json_stringify_func(value: Any, indent: int = 0) -> str:
+    """json_stringify - Convert AICode value to JSON string"""
+    try:
+        if indent > 0:
+            return json.dumps(value, indent=indent, ensure_ascii=False)
+        return json.dumps(value, ensure_ascii=False)
+    except Exception as e:
+        raise StdlibError(f"Cannot convert to JSON: {e}")
+
+
+# =============================================================================
 # Dictionary of all builtins for easy registration
 # =============================================================================
 
@@ -309,6 +374,14 @@ BUILTINS = {
     "print": print_func,
     "println": println_func,
     "input": input_func,
+    # File operations
+    "read_file": read_file_func,
+    "write_file": write_file_func,
+    "file_exists": file_exists_func,
+    "delete_file": delete_file_func,
+    # JSON operations
+    "json_parse": json_parse_func,
+    "json_stringify": json_stringify_func,
     # ASCII aliases for convenience
     "map": map_func,
     "filter": filter_func,

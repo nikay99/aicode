@@ -1,0 +1,38 @@
+# Storage Module - File persistence for todos
+# Handles saving and loading todos from JSON files
+
+const STORAGE_FILE = "todos.json"
+
+# Load todos from file
+fn load_todos()
+  if file_exists(STORAGE_FILE)
+    let json_str = read_file(STORAGE_FILE)
+    let data = json_parse(json_str)
+    if data == null
+      return []
+    return data
+  else
+    return []
+
+# Save todos to file
+fn save_todos(todos)
+  let json_str = json_stringify(todos, 2)
+  write_file(STORAGE_FILE, json_str)
+
+# Clear all todos
+fn clear_todos()
+  if file_exists(STORAGE_FILE)
+    delete_file(STORAGE_FILE)
+
+# Export todos to a different file
+fn export_todos(todos, filepath)
+  let json_str = json_stringify(todos, 2)
+  write_file(filepath, json_str)
+
+# Import todos from a different file
+fn import_todos(filepath)
+  if file_exists(filepath)
+    let json_str = read_file(filepath)
+    return json_parse(json_str)
+  else
+    return []

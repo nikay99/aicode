@@ -1,0 +1,172 @@
+# Commands Module - CLI command implementations
+# Provides functions for all todo operations
+
+import models
+import storage
+
+# Display header
+fn show_header()
+  println("")
+  println("================================")
+  println("        TODO APP v1.0          ")
+  println("================================")
+  println("")
+
+# Display menu
+fn show_menu()
+  println("Commands:")
+  println("  1. list     - List all todos")
+  println("  2. add      - Add a new todo")
+  println("  3. done     - Mark todo as completed")
+  println("  4. undo     - Mark todo as not completed")
+  println("  5. delete   - Delete a todo")
+  println("  6. filter   - Filter todos")
+  println("  7. clear    - Clear all todos")
+  println("  8. stats    - Show statistics")
+  println("  9. help     - Show this menu")
+  println("  0. quit     - Exit application")
+  println("")
+
+# List all todos
+fn cmd_list(todos)
+  println("Your Todos:")
+  println("-----------")
+  
+  if length(todos) == 0
+    println("No todos yet. Add one with 'add'!")
+    return
+  
+  # Sort by priority
+  let sorted = models.sort_by_priority(todos)
+  
+  let i = 0
+  while i < length(sorted)
+    let formatted = models.format_todo(sorted[i])
+    println(formatted)
+    i = i + 1
+  
+  let active_count = models.count_active(todos)
+  println("")
+  println("Active: " + str(active_count) + " / Total: " + str(length(todos)))
+
+# Add new todo
+fn cmd_add(todos, title, priority)
+  # Find next id
+  let next_id = 1
+  let i = 0
+  while i < length(todos)
+    if todos[i]["id"] >= next_id
+      next_id = todos[i]["id"] + 1
+    i = i + 1
+  
+  let new_todo = models.create_todo(next_id, title, priority)
+  todos = concat(todos, [new_todo])
+  
+  storage.save_todos(todos)
+  println("+ Added todo #" + str(next_id) + ": " + title)
+  return todos
+
+# Mark todo as completed
+fn cmd_done(todos, id)
+  let todo = models.find_by_id(todos, id)
+  if todo != null
+    models.complete_todo(todo)
+    storage.save_todos(todos)
+    println("+ Marked todo #" + str(id) + " as completed")
+  else
+    println("- Todo #" + str(id) + " not found")
+  return todos
+
+# Mark todo as not completed
+fn cmd_undo(todos, id)
+  let todo = models.find_by_id(todos, id)
+  if todo != null
+    models.toggle_todo(todo)
+    todo["completed"] = false
+    storage.save_todos(todos)
+    println("+ Marked todo #" + str(id) + " as not completed")
+  else
+    println("- Todo #" + str(id) + " not found")
+  return todos
+
+# Delete todo
+fn cmd_delete(todos, id)
+  let todo = models.find_by_id(todos, id)
+  if todo != null
+    # Filter out the todo with this id
+    let new_todos = filter(todos, \t: t["id"] != id)
+    storage.save_todos(new_todos)
+    println("+ Deleted todo #" + str(id))
+    return new_todos
+  else
+    println("- Todo #" + str(id) + " not found")
+    return todos
+
+# Filter todos
+fn cmd_filter(todos, filter_type)
+  let filtered = []
+  
+  if filter_type == "active"
+    filtered = filter(todos, \t: !t["completed"])
+    println("Active Todos:")
+  else if filter_type == "completed"
+    filtered = filter(todos, \t: t["completed"])
+    println("Completed Todos:")
+  else if filter_type == "high"
+    filtered = filter(todos, \t: t["priority"] == models.PRIORITY_HIGH)
+    println("High Priority Todos:")
+  else if filter_type == "medium"
+    filtered = filter(todos, \t: t["priority"] == models.PRIORITY_MEDIUM)
+    println("Medium Priority Todos:")
+  else if filter_type == "low"
+    filtered = filter(todos, \t: t["priority"] == models.PRIORITY_LOW)
+    println("Low Priority Todos:")
+  else
+    println("Unknown filter. Use: active, completed, high, medium, low")
+    return
+  
+  if length(filtered) == 0
+    println("No matching todos.")
+  else
+    let i = 0
+    while i < length(filtered)
+      println(models.format_todo(filtered[i]))
+      i = i + 1
+
+# Clear all todos
+fn cmd_clear()
+  println("Are you sure? (yes/no)")
+  let confirm = input()
+  if confirm == "yes"
+    storage.clear_todos()
+    println("+ All todos cleared")
+    return []
+  else
+    println("Cancelled")
+    return storage.load_todos()
+
+# Show statistics
+fn cmd_stats(todos)
+  let total = length(todos)
+  let active = models.count_active(todos)
+  let completed = models.count_completed(todos)
+  
+  let high = length(filter(todos, \t: t["priority"] == models.PRIORITY_HIGH))
+  let medium = length(filter(todos, \t: t["priority"] == models.PRIORITY_MEDIUM))
+  let low = length(filter(todos, \t: t["priority"] == models.PRIORITY_LOW))
+  
+  println("Statistics")
+  println("----------")
+  println("Total todos:     " + str(total))
+  println("Active:          " + str(active))
+  println("Completed:       " + str(completed))
+  println("")
+  println("By Priority:")
+  println("  High:          " + str(high))
+  println("  Medium:        " + str(medium))
+  println("  Low:           " + str(low))
+  
+  if total > 0
+    let completion_rate = (completed * 100) / total
+    println("")
+    println("Completion rate: " + str(completion_rate) + "%")

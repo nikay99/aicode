@@ -5,7 +5,13 @@ AICode Lexer - Tokenisiert den Sourcecode
 from enum import Enum, auto
 from dataclasses import dataclass
 from typing import List, Optional, Iterator, Any
-from .errors import LexerError, invalid_character, unterminated_string, invalid_indentation, invalid_escape_sequence
+from .errors import (
+    LexerError,
+    invalid_character,
+    unterminated_string,
+    invalid_indentation,
+    invalid_escape_sequence,
+)
 
 
 class TokenType(Enum):
@@ -378,6 +384,8 @@ class Lexer:
                 "=": TokenType.EQ,
                 "<": TokenType.LT,
                 ">": TokenType.GT,
+                "!": TokenType.NOT,
+                "|": TokenType.PIPE,
                 "(": TokenType.LPAREN,
                 ")": TokenType.RPAREN,
                 "[": TokenType.LBRACKET,

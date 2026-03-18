@@ -1,0 +1,82 @@
+# Todo App Main Entry Point
+# Interactive CLI todo manager
+
+import models
+import storage
+import commands
+
+# Main application loop
+fn main()
+  commands.show_header()
+  commands.show_menu()
+  
+  # Load existing todos
+  let todos = storage.load_todos()
+  println("Loaded " + str(length(todos)) + " existing todos")
+  println("")
+  
+  let running = true
+  while running
+    print("> ")
+    let cmd = input()
+    
+    if cmd == "list" || cmd == "1"
+      commands.cmd_list(todos)
+    
+    else if cmd == "add" || cmd == "2"
+      print("Title: ")
+      let title = input()
+      print("Priority (1=low, 2=medium, 3=high): ")
+      let priority_str = input()
+      let priority = int(priority_str)
+      if priority < 1 || priority > 3
+        priority = 2
+      todos = commands.cmd_add(todos, title, priority)
+    
+    else if cmd == "done" || cmd == "3"
+      print("Todo ID: ")
+      let id_str = input()
+      let id = int(id_str)
+      todos = commands.cmd_done(todos, id)
+    
+    else if cmd == "undo" || cmd == "4"
+      print("Todo ID: ")
+      let id_str = input()
+      let id = int(id_str)
+      todos = commands.cmd_undo(todos, id)
+    
+    else if cmd == "delete" || cmd == "5"
+      print("Todo ID: ")
+      let id_str = input()
+      let id = int(id_str)
+      todos = commands.cmd_delete(todos, id)
+    
+    else if cmd == "filter" || cmd == "6"
+      print("Filter (active/completed/high/medium/low): ")
+      let filter_type = input()
+      commands.cmd_filter(todos, filter_type)
+    
+    else if cmd == "clear" || cmd == "7"
+      todos = commands.cmd_clear()
+    
+    else if cmd == "stats" || cmd == "8"
+      commands.cmd_stats(todos)
+    
+    else if cmd == "help" || cmd == "9"
+      commands.show_menu()
+    
+    else if cmd == "quit" || cmd == "0" || cmd == "exit"
+      running = false
+      println("Goodbye!")
+    
+    else if cmd == ""
+      # Empty input, do nothing
+    
+    else
+      println("Unknown command: " + cmd)
+      println("Type 'help' for available commands")
+    
+    println("")
+
+# Run the application
+main()

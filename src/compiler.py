@@ -462,6 +462,33 @@ class BytecodeCompiler:
             "is_err",
             "unwrap",
             "unwrap_or",
+            # File operations
+            "read_file",
+            "write_file",
+            "file_exists",
+            "delete_file",
+            # JSON operations
+            "json_parse",
+            "json_stringify",
+            # String operations
+            "strlen",
+            "substring",
+            "split",
+            "join",
+            "replace",
+            "chr",
+            "ord",
+            # Math operations
+            "abs",
+            "min",
+            "max",
+            "sum",
+            "input",
+            "contains",
+            "not_contains",
+            "reverse",
+            "concat",
+            "zip",
         ]
 
         # Add extra globals (e.g., imported modules)

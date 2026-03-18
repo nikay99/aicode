@@ -1,0 +1,92 @@
+# Todo Model - Data structures and operations for todos
+# This module defines the Todo struct and basic operations
+
+# Todo priority levels
+const PRIORITY_LOW = 1
+const PRIORITY_MEDIUM = 2
+const PRIORITY_HIGH = 3
+
+# Create a new todo
+fn create_todo(id, title, priority)
+  return {
+    "id": id,
+    "title": title,
+    "priority": priority,
+    "completed": false,
+    "created_at": ""
+  }
+
+# Mark todo as completed
+fn complete_todo(todo)
+  todo["completed"] = true
+  return todo
+
+# Toggle todo completion status
+fn toggle_todo(todo)
+  todo["completed"] = !todo["completed"]
+  return todo
+
+# Check if todo is completed
+fn is_completed(todo)
+  return todo["completed"]
+
+# Get priority as string
+fn priority_string(priority)
+  if priority == PRIORITY_HIGH
+    return "HIGH"
+  else if priority == PRIORITY_MEDIUM
+    return "MEDIUM"
+  else
+    return "LOW"
+
+# Format todo for display
+fn format_todo(todo)
+  let status = "[ ]"
+  if todo["completed"]
+    status = "[x]"
+  
+  let priority_str = priority_string(todo["priority"])
+  let id_str = str(todo["id"])
+  
+  return status + " " + id_str + ": " + todo["title"] + " (" + priority_str + ")"
+
+# Find todo by id in list
+fn find_by_id(todos, id)
+  for todo in todos
+    if todo["id"] == id
+      return todo
+  return null
+
+# Filter todos by completion status
+fn filter_by_status(todos, completed)
+  return filter(todos, λ t: t["completed"] == completed)
+
+# Filter todos by priority
+fn filter_by_priority(todos, priority)
+  return filter(todos, λ t: t["priority"] == priority)
+
+# Sort todos by priority (high to low)
+fn sort_by_priority(todos)
+  # Simple bubble sort for demonstration
+  let n = length(todos)
+  let i = 0
+  while i < n
+    let j = 0
+    while j < n - i - 1
+      if todos[j]["priority"] < todos[j + 1]["priority"]
+        let temp = todos[j]
+        todos[j] = todos[j + 1]
+        todos[j + 1] = temp
+      j = j + 1
+    i = i + 1
+  return todos
+
+# Count active (not completed) todos
+fn count_active(todos)
+  let active = filter_by_status(todos, false)
+  return length(active)
+
+# Count completed todos
+fn count_completed(todos)
+  let completed = filter_by_status(todos, true)
+  return length(completed)
