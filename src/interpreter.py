@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.compiler import BytecodeCompiler, CompilerError
 from src.vm import VirtualMachine, VMError
+from src.stdlib_ai import StdlibError
 
 
 class AICodeError(Exception):
@@ -47,6 +48,8 @@ class Interpreter:
         except CompilerError as e:
             raise AICodeError(f"Compilation error: {e}")
         except VMError as e:
+            raise AICodeError(f"Runtime error: {e}")
+        except StdlibError as e:
             raise AICodeError(f"Runtime error: {e}")
 
         return self.output

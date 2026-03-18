@@ -8,13 +8,28 @@ from dataclasses import dataclass, field
 from src.bytecode import OpCode, BytecodeFunction, BytecodeModule, Instruction
 from src.stdlib_ai import BUILTINS
 from src.errors import (
-    RuntimeError, division_by_zero, index_out_of_bounds, key_not_found,
-    undefined_function, stack_overflow, stack_underflow,
-    E106, E404, E406, E407, E408, E410, E411, E412, E413, E418, E419
+    RuntimeError as AICodeRuntimeError,
+    division_by_zero,
+    index_out_of_bounds,
+    key_not_found,
+    undefined_function,
+    stack_overflow,
+    stack_underflow,
+    E106,
+    E404,
+    E406,
+    E407,
+    E408,
+    E410,
+    E411,
+    E412,
+    E413,
+    E418,
+    E419,
 )
 
 
-class VMError(Exception):
+class VMError(AICodeRuntimeError):
     """VM runtime error"""
 
     pass
@@ -31,7 +46,7 @@ class CallFrame:
     def read_instruction(self) -> Instruction:
         """Read next instruction"""
         if self.ip >= len(self.function.code):
-            raise RuntimeError(E106, "Unexpected end of code")
+            raise VMError(E106, "Unexpected end of code")
         instr = self.function.code[self.ip]
         self.ip += 1
         return instr

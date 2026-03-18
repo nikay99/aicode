@@ -86,9 +86,7 @@ class FunctionCompiler:
                     global_idx = self.global_names.index(expr.name)
                     self.builder.emit(OpCode.LOAD_GLOBAL, global_idx)
                 else:
-                    # New global - add it
-                    self.global_names.append(expr.name)
-                    self.builder.emit(OpCode.LOAD_GLOBAL, len(self.global_names) - 1)
+                    raise CompilerError("E302", f"Undefined variable: '{expr.name}'")
 
         elif isinstance(expr, ast.ListExpr):
             # Compile elements - BUILD_LIST will reverse them
@@ -227,9 +225,6 @@ class FunctionCompiler:
             self.builder.emit(OpCode.LOAD_GLOBAL, global_idx)
 
         elif isinstance(expr, ast.MatchExpr):
-            # Compile match expression
-            self.compile_expr(expr.expr)
-
             end_label = self.new_label()
             next_labels = []
 
@@ -237,10 +232,16 @@ class FunctionCompiler:
                 next_label = self.new_label()
                 next_labels.append(next_label)
 
-                # Pattern matching (simplified)
-                # TODO: Implement proper pattern matching
+                if isinstance(arm.pattern, ast.LiteralPattern):
+                    self.compile_expr(expr.expr)
+                    self.compile_expr(arm.pattern.value)
+                    self.builder.emit(OpCode.EQ)
+                    self.builder.emit_jump(OpCode.JUMP_IF_FALSE, next_label)
+                elif isinstance(arm.pattern, ast.WildcardPattern):
+                    pass
+                else:
+                    pass
 
-                # Body
                 self.compile_expr(arm.body)
                 self.builder.emit_jump(OpCode.JUMP, end_label)
 
@@ -406,6 +407,12 @@ class BytecodeCompiler:
             "float",
             "keys",
             "values",
+            "Ok",
+            "Err",
+            "is_ok",
+            "is_err",
+            "unwrap",
+            "unwrap_or",
         ]
         self.module.globals = builtins + list(self.global_vars)
 

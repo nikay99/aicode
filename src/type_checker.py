@@ -187,6 +187,17 @@ class TypeChecker:
         # range: int -> int -> list<int>
         env.set("range", Scheme([], TypeArrow([TypeInt, TypeInt], TypeList(TypeInt))))
 
+        # String concatenation
+        env.set("+", Scheme([], TypeArrow([TypeStr, TypeStr], TypeStr)))
+
+        # reduce: forall a b. (a -> b -> a) -> a -> list<b> -> a
+        a = TypeVar()
+        b = TypeVar()
+        env.set(
+            "reduce",
+            Scheme([a, b], TypeArrow([TypeArrow([a, b], a), a, TypeList(b)], a)),
+        )
+
         return env
 
     def fresh_var(self) -> TypeVar:
@@ -341,7 +352,26 @@ class TypeChecker:
             t1 = self.infer(env, expr.left)
             t2 = self.infer(env, expr.right)
 
-            if expr.op in ["+", "-", "*", "%"]:
+            if expr.op == "+":
+                # Support both int and str concatenation
+                pruned_t1 = self._prune(t1)
+                pruned_t2 = self._prune(t2)
+                if isinstance(pruned_t1, TypeConst) and pruned_t1.name == "str":
+                    self.unify(t2, TypeStr)
+                    return TypeStr
+                elif isinstance(pruned_t2, TypeConst) and pruned_t2.name == "str":
+                    self.unify(t1, TypeStr)
+                    return TypeStr
+                elif isinstance(pruned_t1, TypeVar) and isinstance(pruned_t2, TypeVar):
+                    # Both are type vars - default to int
+                    self.unify(t1, TypeInt)
+                    self.unify(t2, TypeInt)
+                    return TypeInt
+                else:
+                    self.unify(t1, TypeInt)
+                    self.unify(t2, TypeInt)
+                    return TypeInt
+            elif expr.op in ["-", "*", "%"]:
                 self.unify(t1, TypeInt)
                 self.unify(t2, TypeInt)
                 return TypeInt
