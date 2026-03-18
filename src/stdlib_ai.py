@@ -18,17 +18,21 @@ def _set_bytecode_function_type(t):
 
 def _is_bytecode_function(obj):
     """Check if object is a BytecodeFunction"""
-    return _bytecode_function_type is not None and isinstance(obj, _bytecode_function_type)
+    return _bytecode_function_type is not None and isinstance(
+        obj, _bytecode_function_type
+    )
 
 
 class StdlibError(Exception):
     """Standard library error"""
+
     pass
 
 
 # =============================================================================
 # List Operations
 # =============================================================================
+
 
 def map_func(lst: List[Any], func: Callable[[Any], Any]) -> List[Any]:
     """∀ (forall) - Map function over list"""
@@ -72,36 +76,39 @@ def not_contains_func(item: Any, lst: List[Any]) -> bool:
 # Result Type for Error Handling
 # =============================================================================
 
+
 class Ok:
     """Ok result variant"""
+
     def __init__(self, value):
         self.value = value
         self.is_ok = True
         self.is_err = False
-    
+
     def __repr__(self):
         return f"Ok({self.value!r})"
 
 
 class Err:
     """Err result variant"""
+
     def __init__(self, error):
         self.error = error
         self.is_ok = False
         self.is_err = True
-    
+
     def __repr__(self):
         return f"Err({self.error!r})"
 
 
 def is_ok_func(result) -> bool:
     """Check if result is Ok"""
-    return hasattr(result, 'is_ok') and result.is_ok
+    return hasattr(result, "is_ok") and result.is_ok
 
 
 def is_err_func(result) -> bool:
     """Check if result is Err"""
-    return hasattr(result, 'is_err') and result.is_err
+    return hasattr(result, "is_err") and result.is_err
 
 
 def unwrap_func(result):
@@ -147,6 +154,7 @@ def zip_func(lst1: List[Any], lst2: List[Any]) -> List[tuple]:
 # String Operations
 # =============================================================================
 
+
 def strlen_func(s: str) -> int:
     """strlen - Get string length"""
     if not isinstance(s, str):
@@ -186,9 +194,24 @@ def replace_func(s: str, old: str, new: str) -> str:
     return s.replace(old, new)
 
 
+def chr_func(code: int) -> str:
+    """chr - Convert Unicode code point to character"""
+    if not isinstance(code, int):
+        raise StdlibError(f"chr expects an integer, got {type(code)}")
+    return chr(code)
+
+
+def ord_func(c: str) -> int:
+    """ord - Get Unicode code point of character"""
+    if not isinstance(c, str) or len(c) != 1:
+        raise StdlibError(f"ord expects a single character string, got {c!r}")
+    return ord(c)
+
+
 # =============================================================================
 # Math Operations
 # =============================================================================
+
 
 def abs_func(x: Union[int, float]) -> Union[int, float]:
     """abs - Absolute value"""
@@ -237,6 +260,7 @@ def range_func(*args) -> List[int]:
 # I/O Operations
 # =============================================================================
 
+
 def print_func(*args) -> None:
     """print - Print without newline"""
     print(*args, end="")
@@ -266,14 +290,14 @@ BUILTINS = {
     "∋": reverse_func,
     "⊕": concat_func,
     "⊗": zip_func,
-    
     # String operations
     "strlen": strlen_func,
     "substring": substring_func,
     "split": split_func,
     "join": join_func,
     "replace": replace_func,
-    
+    "chr": chr_func,
+    "ord": ord_func,
     # Math operations
     "abs": abs_func,
     "min": min_func,
@@ -281,12 +305,10 @@ BUILTINS = {
     "sum": sum_func,
     "range": range_func,
     "length": len,
-    
     # I/O operations
     "print": print_func,
     "println": println_func,
     "input": input_func,
-    
     # ASCII aliases for convenience
     "map": map_func,
     "filter": filter_func,
@@ -296,7 +318,6 @@ BUILTINS = {
     "reverse": reverse_func,
     "concat": concat_func,
     "zip": zip_func,
-    
     # Result type
     "Ok": Ok,
     "Err": Err,

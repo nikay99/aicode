@@ -54,25 +54,25 @@ class CallFrame:
 
 class BytecodeFunctionWrapper:
     """Wrapper to make BytecodeFunction callable from Python"""
-    
+
     def __init__(self, func: BytecodeFunction, vm: "VirtualMachine"):
         self.func = func
         self.vm = vm
-    
+
     def __call__(self, *args):
         """Execute the bytecode function with given arguments"""
         # Create a new frame for the function call
         new_frame = CallFrame(self.func)
         new_frame.locals = list(args) + [None] * (self.func.locals_count - len(args))
         self.vm.frames.append(new_frame)
-        
+
         # Execute until the frame returns
         while len(self.vm.frames) > 1:  # Keep going until we return to main
             try:
                 self.vm._execute_instruction()
             except StopIteration:
                 break
-        
+
         # Return the result from the stack
         if self.vm.stack:
             return self.vm.pop()
@@ -126,20 +126,20 @@ class VirtualMachine:
         for name in module.globals:
             if name not in self.globals:
                 self.globals[name] = None
-        
+
         # Store function references in globals for user-defined functions and lambdas
         # First, create a mapping of function names to their indices
         func_indices = {}
         for i, func in enumerate(module.functions):
             if func.name != "__main__":
                 func_indices[func.name] = i
-        
+
         # Now store functions in globals by matching names
         for i, func in enumerate(module.functions):
             if func.name != "__main__":
                 if func.name in self.globals:
                     self.globals[func.name] = func
-        
+
         # Handle lambdas specially - match __lambda_X__ globals to <lambda> functions
         lambda_count = 0
         for global_name in module.globals:
@@ -149,6 +149,11 @@ class VirtualMachine:
                     if func.name == "<lambda>":
                         self.globals[global_name] = func
                         break
+
+        # Register user-defined functions by name
+        for func in module.functions:
+            if func.name != "__main__":
+                self.globals[func.name] = func
 
         # Start with entry point
         entry_func = module.functions[module.entry_point]
@@ -199,7 +204,6 @@ class VirtualMachine:
             while len(frame.locals) <= operand:
                 frame.locals.append(None)
             frame.locals[operand] = value
-            self.push(value)  # Keep value on stack for chained assignment
 
         elif opcode == OpCode.LOAD_GLOBAL:
             if self.module is None:
@@ -216,7 +220,6 @@ class VirtualMachine:
             name = self.module.globals[operand] if isinstance(operand, int) else operand
             value = self.pop()
             self.globals[name] = value
-            self.push(value)
 
         elif opcode == OpCode.ADD:
             b = self.pop()
@@ -309,10 +312,15 @@ class VirtualMachine:
 
         elif opcode == OpCode.CALL:
             argc = operand
-            # Get function from stack (it's on top, args are below)
-            func = self.pop()
+            # Stack: func was pushed first, then args
+            # Pop args in reverse order (last arg first), then func
             args = [self.pop() for _ in range(argc)]
             args.reverse()
+            func = self.pop()
+
+            # Resolve integer index to BytecodeFunction (user-defined functions stored by index)
+            if isinstance(func, int) and self.module is not None:
+                func = self.module.functions[func]
 
             if callable(func):
                 # Built-in or Python function
@@ -326,9 +334,10 @@ class VirtualMachine:
                 result = func(*wrapped_args)
                 self.push(result)
             elif isinstance(func, BytecodeFunction):
-                # AICode function
+                # AICode function — push frame; result is pushed when RETURN_VALUE executes
                 new_frame = CallFrame(func)
-                new_frame.locals = args + [None] * (func.locals_count - len(args))
+                extra = max(0, func.locals_count - len(args))
+                new_frame.locals = list(args) + [None] * extra
                 self.frames.append(new_frame)
             else:
                 raise RuntimeError(E410, f"Cannot call {type(func)}")
@@ -375,13 +384,23 @@ class VirtualMachine:
             else:
                 self.push(getattr(obj, attr, None))
 
-        elif opcode == OpCode.PRINT:
+        elif opcode == OpCode.INDEX_SET:
             value = self.pop()
-            print(value, end="")
+            index = self.pop()
+            obj = self.pop()
+            if isinstance(obj, (list, dict)):
+                obj[index] = value
+            else:
+                raise VMError(f"Cannot index-assign {type(obj)}")
 
-        elif opcode == OpCode.PRINTLN:
+        elif opcode == OpCode.SET_ATTR:
             value = self.pop()
-            print(value)
+            obj = self.pop()
+            attr = frame.function.constants[operand]
+            if isinstance(obj, dict):
+                obj[attr] = value
+            else:
+                setattr(obj, attr, value)
 
         elif opcode == OpCode.ITER:
             obj = self.pop()
@@ -391,18 +410,16 @@ class VirtualMachine:
                 self.push(iter(obj.items()))
             elif isinstance(obj, str):
                 self.push(iter(obj))
-            elif hasattr(obj, '__iter__'):
+            elif hasattr(obj, "__iter__"):
                 self.push(iter(obj))
             else:
                 raise RuntimeError(E408, f"Cannot iterate over {type(obj)}")
 
         elif opcode == OpCode.ITER_NEXT:
-            # Pop the iterator from the stack
-            iterator = self.pop()
+            # Peek the iterator from the stack (don't pop - it stays for next iteration)
+            iterator = self.peek()
             try:
                 value = next(iterator)
-                # Push iterator back for next iteration
-                self.push(iterator)
                 # Push the value
                 if isinstance(value, tuple) and len(value) == 2:
                     # Dictionary items come as (key, value) pairs
@@ -412,9 +429,17 @@ class VirtualMachine:
                     self.push(value)
                 # Success - don't jump
             except StopIteration:
-                # No more items - jump to end
+                # No more items - jump to end (iterator will be popped by bytecode's POP)
                 frame = self.current_frame()
                 frame.ip += operand
+
+        elif opcode == OpCode.PRINT:
+            value = self.pop()
+            print(value, end="")
+
+        elif opcode == OpCode.PRINTLN:
+            value = self.pop()
+            print(value)
 
         elif opcode == OpCode.NOP:
             pass

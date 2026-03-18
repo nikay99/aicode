@@ -15,14 +15,12 @@ from .vm import VirtualMachine, VMError
 from .type_checker import TypeChecker
 from .bytecode import BytecodeModule, BytecodeFunction, Instruction, OpCode
 
-# AI Unicode (v2)
-from .lexer_ai import (
-    tokenize as tokenize_ai,
-    Token as TokenAI,
-    TokenType as TokenTypeAI,
-)
+# AI Unicode (v2) — import with aliases to avoid overwriting ast_nodes exports
+from .lexer_ai import tokenize as tokenize_ai
+from .lexer_ai import Token as TokenAI
+from .lexer_ai import TokenType as TokenTypeAI
 from .parser_ai import parse as parse_ai
-from .ast_ai import *
+import src.ast_ai as ast_ai
 
 # Interpreter (Compiler + VM)
 from .interpreter import interpret, Interpreter
@@ -40,8 +38,12 @@ __all__ = [
     "ParseError",
     # AST
     "Program",
-    "Expr",
-    "Stmt",
+    # AI
+    "tokenize_ai",
+    "parse_ai",
+    "TokenAI",
+    "TokenTypeAI",
+    "ast_ai",
     # Interpreter
     "Interpreter",
     "AICodeError",

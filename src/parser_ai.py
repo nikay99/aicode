@@ -4,12 +4,16 @@ Recursive descent parser for Unicode tokens
 """
 
 from typing import List, Optional, Union
-import sys
+from .lexer_ai import tokenize, Token, TokenType
+from .ast_ai import *
 
-sys.path.insert(0, "src")
+_typevar_counter = 0
 
-from lexer_ai import tokenize, Token, TokenType
-from ast_ai import *
+
+def _fresh_typevar() -> TypeVar:
+    global _typevar_counter
+    _typevar_counter += 1
+    return TypeVar(_typevar_counter)
 
 
 class ParseError(Exception):
@@ -69,11 +73,9 @@ class Parser:
         elif self.match(TokenType.BOOL_TYPE):
             return TypeBool
         elif self.match(TokenType.LIST_TYPE):
-            # List type - simplified
-            return TypeList(TypeVar())
+            return TypeList(_fresh_typevar())
         elif self.match(TokenType.DICT_TYPE):
-            # Dict type - simplified
-            return TypeDict(TypeStr, TypeVar())
+            return TypeDict(TypeStr, _fresh_typevar())
         return None
 
     # === Expressions ===

@@ -8,13 +8,13 @@
 
 - **Language Type**: Compiled language with Hindley-Milner type inference
 - **Architecture**: Lexer → Parser → Type Checker → Compiler → VM
-- **Version**: 0.1.0-alpha
-- **Python Version**: 3.12+
+- **Version**: 0.2.0
+- **Python Version**: 3.10+
 
 ## Directory Structure
 
 ```
-/root/aicode/
+/root/snap/tomber/AICode/
 ├── src/                    # Core source code
 │   ├── __init__.py        # Package exports
 │   ├── lexer.py           # ASCII lexer (v1 compatible)
@@ -281,38 +281,35 @@ def infer(self, expr: Expr, env: Dict[str, TypeScheme]) -> Type:
     # ... handle other expression types
 ```
 
-## Current Known Issues
+## Current Status
 
-### Broken Imports
-The test file `tests/test_aicode.py` imports `src.interpreter` which doesn't exist:
-```
-ModuleNotFoundError: No module named 'src.interpreter'
-```
+**All 26 tests passing** as of 2026-03-18.
 
-**Fix:** Update imports to use correct module paths or create missing module.
+### Working Components
+- Lexer (ASCII + Unicode)
+- Parser (ASCII + Unicode)
+- Bytecode Compiler — all core constructs working
+- Stack-based VM — all opcodes implemented including ITER/ITER_NEXT
+- Interpreter (`src/interpreter.py`) — wraps Compiler + VM with output capture
+- Built-ins: `println`, `print`, `range`, `map`, `filter`, `reduce`, `length`, `str`, `int`, `float`, `keys`, `values`, `Ok`, `Err`, `is_ok`, `is_err`, `unwrap`, `unwrap_or`
 
-### CLI Broken
-`main.py` imports from `src.interpreter` which doesn't exist.
+### Remaining Work
+- Standard library (`src/stdlib_ai.py`) — not implemented; add Unicode symbol aliases
+- Type checker integration — `src/type_checker.py` exists but is not wired into the pipeline
+- CLI tool (`main.py`) — needs updating for new interpreter module path
+- Module/import system — `import` is a no-op
 
-### Missing Components
-- Standard library (`src/stdlib_ai.py`) - Not implemented
-- Interpreter module - Missing (use compiler + VM instead)
-
-## Priority Tasks (from TODO.md)
-
-### High Priority
-1. **Type Checker** - Hindley-Milner implementation (exists, needs testing)
-2. **Bytecode Compiler** - AST to bytecode (exists, needs testing)
-3. **Virtual Machine** - Bytecode execution (exists, needs testing)
+## Priority Tasks
 
 ### Medium Priority
-4. **Standard Library** - Core functions (∀, ∃, ∑, ∈, etc.)
-5. **Error Handling** - Error codes (E1xx-E4xx)
-6. **CLI Tool** - Fix broken imports
+1. **Standard Library** — Wire up Unicode symbols (∀=map, ∃=filter, ∑=reduce) as aliases in VM builtins
+2. **Type Checker** — Integrate `src/type_checker.py` into Interpreter pipeline before compilation
+3. **CLI Tool** — Update `main.py` to use `src.interpreter`
 
-### Documentation
-7. **Language Specification** - Complete formal spec in `docs/`
-8. **Examples** - More example programs
+### Lower Priority
+4. **Error Handling** — Implement error codes (E1xx-E4xx) throughout
+5. **Language Specification** — Complete formal spec in `docs/`
+6. **More Examples** — Expand `examples/` directory
 
 ## Testing Approach
 
@@ -419,5 +416,5 @@ Source Code (.aic)
 
 ---
 
-*Last Updated: 2024*
+*Last Updated: 2026-03-18*
 *Maintainers: nikay99*
