@@ -1,0 +1,82 @@
+{
+  "function": {
+    "prefix": "fn",
+    "body": "fn ${1:name}(${2:args}) {\n\t$0\n}",
+    "description": "Insert a function definition"
+  },
+  "struct": {
+    "prefix": "struct",
+    "body": "struct ${1:Name} {\n\t$0\n}",
+    "description": "Insert a struct definition"
+  },
+  "enum": {
+    "prefix": "enum",
+    "body": "enum ${1:Name} {\n\t${2:Variant1},\n\t${3:Variant2}\n}",
+    "description": "Insert an enum definition"
+  },
+  "for": {
+    "prefix": "for",
+    "body": "for ${1:item} in ${2:iterable} {\n\t$0\n}",
+    "description": "Insert a for loop"
+  },
+  "while": {
+    "prefix": "while",
+    "body": "while ${1:condition} {\n\t$0\n}",
+    "description": "Insert a while loop"
+  },
+  "if": {
+    "prefix": "if",
+    "body": "if ${1:condition} {\n\t$0\n}",
+    "description": "Insert an if statement"
+  },
+  "ifelse": {
+    "prefix": "ifelse",
+    "body": "if ${1:condition} {\n\t${2:then}\n} else {\n\t${3:else}\n}",
+    "description": "Insert an if-else statement"
+  },
+  "match": {
+    "prefix": "match",
+    "body": "match ${1:expr} {\n\t${2:pattern} => ${3:value},\n}",
+    "description": "Insert a match expression"
+  },
+  "let": {
+    "prefix": "let",
+    "body": "let ${1:name} = ${2:value}",
+    "description": "Insert a let statement"
+  },
+  "letmut": {
+    "prefix": "letmut",
+    "body": "let mut ${1:name} = ${2:value}",
+    "description": "Insert a mutable let statement"
+  },
+  "const": {
+    "prefix": "const",
+    "body": "const ${1:name} = ${2:value}",
+    "description": "Insert a const statement"
+  },
+  "return": {
+    "prefix": "return",
+    "body": "return ${1:value}",
+    "description": "Insert a return statement"
+  },
+  "lambda": {
+    "prefix": "lambda",
+    "body": "lambda (${1:args}) ${2:body}",
+    "description": "Insert a lambda expression"
+  },
+  "list": {
+    "prefix": "list",
+    "body": "[${1:items}]",
+    "description": "Insert a list literal"
+  },
+  "dict": {
+    "prefix": "dict",
+    "body": "{${1:key}: ${2:value}}",
+    "description": "Insert a dict literal"
+  },
+  "import": {
+    "prefix": "import",
+    "body": "import ${1:module}",
+    "description": "Insert an import statement"
+  }
+}
