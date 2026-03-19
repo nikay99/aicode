@@ -27,6 +27,9 @@ from src.compiler import BytecodeCompiler, CompilerError
 from src.vm import VirtualMachine, VMError
 from src.bytecode import BytecodeModule
 from src.type_checker import TypeChecker, TypeError as TCTypeError
+from src.package_manager import PackageManager, PackageManagerError, SemverVersion
+from src.formatter import AICodeFormatter
+from src.linter import Linter
 
 
 # ANSI Farbcodes für Terminal
@@ -721,6 +724,124 @@ def cmd_format(args):
         sys.exit(1)
 
 
+def cmd_install(args):
+    """Install a package from local registry or file."""
+    pkg_manager = PackageManager()
+    
+    if args.package:
+        name = args.package
+        version = args.version or "*"
+        
+        if args.from_file:
+            source = Path(args.from_file)
+            if not source.exists():
+                print(colorize(f"Error: File not found: {args.from_file}", Colors.RED))
+                sys.exit(1)
+            pkg_manager.install_package(name, version, source)
+            print(colorize(f"✓ Installed {name}@{version} from {args.from_file}", Colors.GREEN))
+        else:
+            if pkg_manager.registry_index.exists():
+                try:
+                    import json
+                    index = json.loads(pkg_manager.registry_index.read_text())
+                    if name in index:
+                        for ver, path in sorted(index[name].items()):
+                            v = SemverVersion(ver)
+                            from src.package_manager import parse_version_constraint
+                            if parse_version_constraint(version, v):
+                                pkg_manager.install_package(name, ver, Path(path))
+                                print(colorize(f"✓ Installed {name}@{ver}", Colors.GREEN))
+                                break
+                        else:
+                            print(colorize(f"No matching version found for {name}@{version}", Colors.YELLOW))
+                    else:
+                        print(colorize(f"Package {name} not found in registry", Colors.RED))
+                        sys.exit(1)
+                except Exception as e:
+                    print(colorize(f"Error reading registry: {e}", Colors.RED))
+                    sys.exit(1)
+            else:
+                print(colorize("No packages installed yet. Registry is empty.", Colors.YELLOW))
+                sys.exit(1)
+    else:
+        if Path("aicode.toml").exists():
+            print(colorize("Installing dependencies from aicode.toml...", Colors.CYAN))
+            pkg_manager.install_from_aicode_toml(Path("aicode.toml"))
+            print(colorize("✓ All dependencies installed", Colors.GREEN))
+        else:
+            print(colorize("Error: No package specified and no aicode.toml found", Colors.RED))
+            sys.exit(1)
+
+
+def cmd_list_packages(args):
+    """List installed packages."""
+    pkg_manager = PackageManager()
+    packages = pkg_manager.list_packages()
+    
+    if not packages:
+        print(colorize("No packages installed.", Colors.YELLOW))
+        return
+    
+    print(colorize("Installed packages:", Colors.CYAN))
+    print(colorize("-" * 50, Colors.GRAY))
+    for pkg in sorted(packages, key=lambda p: p.name):
+        print(f"  {pkg.name}@{pkg.version}")
+        if pkg.description:
+            print(f"    {pkg.description}")
+
+
+def cmd_remove(args):
+    """Remove an installed package."""
+    pkg_manager = PackageManager()
+    name = args.package
+    
+    if not pkg_manager.is_installed(name):
+        print(colorize(f"Package {name} is not installed", Colors.YELLOW))
+        sys.exit(1)
+    
+    pkg_manager.remove_package(name)
+    print(colorize(f"✓ Removed {name}", Colors.GREEN))
+
+
+def cmd_lsp(args):
+    """Start the AICode Language Server Protocol server."""
+    from lsp.server import LSPServer
+    
+    print(colorize("Starting AICode LSP server...", Colors.CYAN))
+    server = LSPServer()
+    server.start()
+
+
+def cmd_lint(args):
+    """Lint an AICode file."""
+    from src.linter import lint_file
+    result = lint_file(args.file)
+    
+    if not result.errors:
+        print(colorize(f"✓ No issues found in {args.file}", Colors.GREEN))
+        return
+    
+    error_count = 0
+    warning_count = 0
+    
+    for error in result.errors:
+        if error.severity.value == "error":
+            error_count += 1
+            prefix = colorize("Error", Colors.RED)
+        else:
+            warning_count += 1
+            prefix = colorize("Warning", Colors.YELLOW)
+        
+        print(f"{prefix} [{error.code}] at {args.file}:{error.line}:{error.column}")
+        print(f"  {error.message}")
+        if error.suggestion:
+            print(f"  Suggestion: {error.suggestion}")
+        print()
+    
+    print(colorize(f"Found {error_count} error(s), {warning_count} warning(s)", 
+                   Colors.YELLOW if warning_count > 0 else Colors.GREEN))
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
@@ -869,6 +990,50 @@ For more information, visit: https://github.com/aicode-ai/aicode
         help="Format in place (modify the file directly)",
     )
 
+    # install command
+    install_parser = subparsers.add_parser(
+        "install",
+        help="Install a package",
+        description="Install a package from registry or local file.",
+    )
+    install_parser.add_argument("package", nargs="?", help="Package name to install")
+    install_parser.add_argument(
+        "--version", "-v", help="Version to install (default: latest)"
+    )
+    install_parser.add_argument(
+        "--from-file", "-f", help="Install from local file or directory"
+    )
+
+    # list command
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List installed packages",
+        description="List all installed packages.",
+    )
+
+    # remove command
+    remove_parser = subparsers.add_parser(
+        "remove",
+        help="Remove an installed package",
+        description="Remove an installed package.",
+    )
+    remove_parser.add_argument("package", help="Name of the package to remove")
+
+    # lsp command
+    lsp_parser = subparsers.add_parser(
+        "lsp",
+        help="Start the AICode Language Server",
+        description="Start the LSP server for IDE integration.",
+    )
+
+    # lint command
+    lint_parser = subparsers.add_parser(
+        "lint",
+        help="Lint an AICode file",
+        description="Check for unused variables, dead code, and style issues.",
+    )
+    lint_parser.add_argument("file", help="Path to the AICode source file")
+
     return parser
 
 
@@ -892,6 +1057,11 @@ def main():
         "check": cmd_check,
         "test": cmd_test,
         "format": cmd_format,
+        "install": cmd_install,
+        "list": cmd_list_packages,
+        "remove": cmd_remove,
+        "lsp": cmd_lsp,
+        "lint": cmd_lint,
     }
 
     if args.command in commands:

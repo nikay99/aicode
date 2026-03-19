@@ -25,7 +25,7 @@ import src.ast_ai as ast_ai
 # Interpreter (Compiler + VM)
 from .interpreter import interpret, Interpreter
 
-__version__ = "0.2.0"
+__version__ = "0.4.0"
 __all__ = [
     # Version
     "__version__",

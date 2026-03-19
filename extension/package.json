@@ -1,0 +1,71 @@
+{
+  "name": "aicode",
+  "displayName": "AICode",
+  "description": "AICode language support - A programming language optimized for LLMs",
+  "version": "0.4.0",
+  "publisher": "aicode",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:aic"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "aic",
+        "aliases": ["AICode", "aic"],
+        "extensions": [".aic"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aic",
+        "scopeName": "source.aic",
+        "path": "./syntaxes/aic.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "aic",
+        "path": "./snippets/aic.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "AICode",
+      "properties": {
+        "aic.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AICode language server"
+        },
+        "aic.lsp.path": {
+          "type": "string",
+          "default": "aic",
+          "description": "Path to the AICode LSP executable"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "cd extension && npm install"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.60.0",
+    "typescript": "^4.8.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^7.0.0"
+  }
+}
