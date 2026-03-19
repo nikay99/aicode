@@ -376,6 +376,11 @@ class Parser:
         if self.match(TokenType.UNDERSCORE):
             return WildcardPattern()
 
+        # Also check for _ as identifier (since lexer now treats _ as identifier)
+        if self.check(TokenType.IDENTIFIER) and self.peek().value == "_":
+            self.advance()
+            return WildcardPattern()
+
         if self.match(TokenType.INT):
             return LiteralPattern(IntLiteral(self.peek(-1).value))
         if self.match(TokenType.STRING):

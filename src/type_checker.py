@@ -168,18 +168,18 @@ class TypeChecker:
 
         a = TypeVar()
         b = TypeVar()
-        # map: (a -> b) -> list<a> -> list<b>
+        # map: list<a> -> (a -> b) -> list<b>
         env.set(
             "map",
-            Scheme([a, b], TypeArrow([TypeArrow([a], b), TypeList(a)], TypeList(b))),
+            Scheme([a, b], TypeArrow([TypeList(a), TypeArrow([a], b)], TypeList(b))),
         )
 
         a = TypeVar()
-        # filter: (a -> bool) -> list<a> -> list<a>
+        # filter: list<a> -> (a -> bool) -> list<a>
         env.set(
             "filter",
             Scheme(
-                [a], TypeArrow([TypeArrow([a], TypeBool), TypeList(a)], TypeList(a))
+                [a], TypeArrow([TypeList(a), TypeArrow([a], TypeBool)], TypeList(a))
             ),
         )
 
@@ -190,13 +190,21 @@ class TypeChecker:
         # String concatenation
         env.set("+", Scheme([], TypeArrow([TypeStr, TypeStr], TypeStr)))
 
-        # reduce: forall a b. (a -> b -> a) -> a -> list<b> -> a
+        # reduce: list<b> -> (a -> b -> a) -> a -> a
         a = TypeVar()
         b = TypeVar()
         env.set(
             "reduce",
-            Scheme([a, b], TypeArrow([TypeArrow([a, b], a), a, TypeList(b)], a)),
+            Scheme([a, b], TypeArrow([TypeList(b), TypeArrow([a, b], a), a], a)),
         )
+
+        # Result type functions
+        a = TypeVar()
+        env.set("is_ok", Scheme([a], TypeArrow([a], TypeBool)))
+        env.set("is_err", Scheme([a], TypeArrow([a], TypeBool)))
+        env.set("unwrap", Scheme([a], TypeArrow([a], a)))
+        a = TypeVar()
+        env.set("unwrap_or", Scheme([a], TypeArrow([a, a], a)))
 
         return env
 
@@ -417,7 +425,7 @@ class TypeChecker:
             key_type = (
                 TypeStr if isinstance(first.key, str) else self.infer(env, first.key)
             )
-            val_type = self.infer(env, first.value)
+            val_type = self.fresh_var()
 
             for entry in expr.entries[1:]:
                 if isinstance(entry.key, str):
@@ -425,8 +433,6 @@ class TypeChecker:
                 else:
                     kt = self.infer(env, entry.key)
                     self.unify(key_type, kt)
-                vt = self.infer(env, entry.value)
-                self.unify(val_type, vt)
 
             return TypeDict(key_type, val_type)
 
@@ -443,11 +449,9 @@ class TypeChecker:
 
         elif isinstance(expr, ast.FieldAccess):
             obj_type = self.infer(env, expr.obj)
-            # Field access on dict
             if isinstance(obj_type, TypeDict):
-                return obj_type.val_type
+                return self.fresh_var()
             else:
-                # Unknown - create fresh var
                 return self.fresh_var()
 
         elif isinstance(expr, ast.IndexExpr):

@@ -17,6 +17,7 @@ from src.errors import (
     stack_underflow,
     E106,
     E404,
+    E405,
     E406,
     E407,
     E408,
@@ -103,13 +104,13 @@ class VirtualMachine:
     def pop(self) -> Any:
         """Pop value from stack"""
         if not self.stack:
-            raise stack_underflow()
+            raise VMError(E407, "Stack underflow")
         return self.stack.pop()
 
     def peek(self, offset: int = 0) -> Any:
         """Peek at stack without popping"""
         if len(self.stack) <= offset:
-            raise stack_underflow()
+            raise VMError(E407, "Stack underflow")
         return self.stack[-(offset + 1)]
 
     def current_frame(self) -> CallFrame:
@@ -122,33 +123,34 @@ class VirtualMachine:
         """Run a bytecode module"""
         self.module = module
 
-        # Initialize globals
-        for name in module.globals:
+        # Initialize builtins only (not user-defined globals)
+        builtins = [
+            "print", "println", "map", "filter", "reduce", "length", "range",
+            "str", "int", "float", "keys", "values", "Ok", "Err", "is_ok", "is_err",
+            "unwrap", "unwrap_or",
+            "∀", "∃", "∑", "∈", "∉", "∋", "⊕", "⊗",
+            "strlen", "substring", "split", "join", "replace",
+            "abs", "min", "max", "sum",
+            "input",
+        ]
+        for name in builtins:
             if name not in self.globals:
                 self.globals[name] = None
         
         # Store function references in globals for user-defined functions and lambdas
-        # First, create a mapping of function names to their indices
-        func_indices = {}
         for i, func in enumerate(module.functions):
             if func.name != "__main__":
-                func_indices[func.name] = i
+                self.globals[func.name] = func
         
-        # Now store functions in globals by matching names
-        for i, func in enumerate(module.functions):
-            if func.name != "__main__":
-                if func.name in self.globals:
-                    self.globals[func.name] = func
-        
-        # Handle lambdas specially - match __lambda_X__ globals to <lambda> functions
-        lambda_count = 0
+        # Handle lambdas specially - collect all lambdas first
+        lambdas = [func for func in module.functions if func.name == "<lambda>"]
+        # Then assign them to __lambda_X__ globals in order
+        lambda_idx = 0
         for global_name in module.globals:
             if global_name.startswith("__lambda_"):
-                # Find the corresponding lambda function
-                for func in module.functions:
-                    if func.name == "<lambda>":
-                        self.globals[global_name] = func
-                        break
+                if lambda_idx < len(lambdas):
+                    self.globals[global_name] = lambdas[lambda_idx]
+                    lambda_idx += 1
 
         # Start with entry point
         entry_func = module.functions[module.entry_point]
@@ -203,12 +205,12 @@ class VirtualMachine:
 
         elif opcode == OpCode.LOAD_GLOBAL:
             if self.module is None:
-                raise RuntimeError(E413, "No module loaded")
+                raise VMError(E413, "No module loaded")
             name = self.module.globals[operand] if isinstance(operand, int) else operand
             if name in self.globals:
                 self.push(self.globals[name])
             else:
-                raise undefined_function(name)
+                raise VMError(E405, f"Undefined variable: '{name}'")
 
         elif opcode == OpCode.STORE_GLOBAL:
             if self.module is None:
